@@ -283,6 +283,10 @@ pub fn FUN_005032a0(g: &mut G, param_1: Ptr, param_2: Ptr, param_3: i32, param_4
         return;
     }
     let mask = g.image(param_2).mBits.clone();
+    // (Port addition) a file image cut into no longer matches its HD art.
+    let mut hd = std::mem::take(&mut g.hd);
+    hd.changed(g, param_1);
+    g.hd = hd;
     let dest = &mut g.image(param_1).mBits;
     for yy in 0..r.mHeight {
         for xx in 0..r.mWidth {

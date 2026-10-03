@@ -192,8 +192,14 @@ impl std::fmt::Debug for Obj {
 impl G {
     /// `operator new` + placement: stores `obj` and returns its pointer.
     pub fn alloc(&mut self, obj: Obj) -> Ptr {
+        // An image loaded from a file: its HD art is requested (port addition, `crate::sexy::hd`).
+        let file_image = matches!(&obj.node, Node::Image(i) if !i.field_0x4.is_empty());
         self.objs.push(Some(obj));
-        (self.objs.len() - 1) as Ptr
+        let p = (self.objs.len() - 1) as Ptr;
+        if file_image {
+            self.hd.created.push(p);
+        }
+        p
     }
 
     /// `operator delete` (`_free`): drops the object. Later use of `p` panics.

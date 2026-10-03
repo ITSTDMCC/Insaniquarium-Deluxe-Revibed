@@ -13,7 +13,8 @@ This repository contains no game data. You need your own copy of Insaniquarium D
 cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
 ```
 
-Without an argument the port looks for `..\Insaniquarium Deluxe` next to this folder.
+Without a path the port looks for `..\Insaniquarium Deluxe` next to this folder. Add `--hd` to
+use the optional HD art (see "HD art" below); without it the game uses its original art.
 The first build takes a few minutes. The built game is `target\release\winfish_rs.exe`;
 the libopenmpt DLLs (music) are copied next to it by `build.rs` and must stay beside it.
 
@@ -52,6 +53,8 @@ An AI agent or a test can play the game through environment variables:
 | `WINFISH_AUTOPLAY=1` | The port plays by itself (shoots aliens, collects coins, feeds, buys). |
 | `WINFISH_NO_SAVE=1` | Saves stay in memory (nothing written to the game folder). |
 | `WINFISH_NO_AUDIO=1` | No sound or music. |
+| `WINFISH_HD=1` | Same as `--hd`: uses the HD art (see below). |
+| `WINFISH_FILTER=<name>` | How the picture is enlarged: `bicubic` (default, keeps every original pixel exact), `nearest` (sharp blocks), `bilinear` (soft), `xbr` (redraws edges as smooth curves). |
 
 A script is a list of `frame:action:arg` steps separated by `;` (frames count rendered
 frames from launch):
@@ -75,6 +78,55 @@ target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe"
 
 To play step by step: run with a snapshot, look at the picture, add the next clicks to the
 script, run again (with `WINFISH_FIXED_STEPS=1` the same script gives the same game).
+
+## HD art (optional)
+
+The game uses its original art unless you start it with `--hd`. HD art is made once, on your
+PC, from your own copy of the game: every image and font is enlarged 4x by Real-ESRGAN (an
+AI upscaler) and saved in a new `hd` folder inside the game folder. Your original game files
+are never changed, and no game art is stored in this repository.
+
+Needs: about 475 MB of free disk space, a graphics card with Vulkan support (for the
+upscaler), and 8 GB of RAM to play with HD art (the game then uses about 2.2 GB).
+
+### Step by step (from a fresh Windows install)
+
+1. **Install the game** (for example from Steam) and note its folder, e.g.
+   `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`.
+2. **Build the port** as described in "Build and run" above (install Rust from
+   https://rustup.rs, then run `cargo build --release` in this folder). Check that the game
+   starts with its original art.
+3. **Install Python 3** from https://www.python.org/downloads/. In the installer, tick
+   **"Add python.exe to PATH"**.
+4. **Install Pillow** (the image library the tool uses). Open a new Command Prompt and run:
+   ```
+   pip install pillow
+   ```
+5. **Download Real-ESRGAN**: from https://github.com/xinntao/Real-ESRGAN/releases/tag/v0.2.5.0
+   download `realesrgan-ncnn-vulkan-20220424-windows.zip` (about 45 MB) and unzip it to a
+   folder of your choice, e.g. `C:\Tools\realesrgan`. That folder should contain
+   `realesrgan-ncnn-vulkan.exe` and a `models` folder.
+6. **Make the HD art.** In a Command Prompt in this folder (`winfish_rs`), run (with your own
+   paths):
+   ```
+   python tools\upscale_art.py --game "C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe" --esrgan "C:\Tools\realesrgan"
+   ```
+   It takes a few minutes and prints one line per image. When it ends with `wrote ...\hd`,
+   the game folder has a new `hd` folder (about 430 MB). If the game is under
+   `Program Files`, Windows may need the Command Prompt to be run as administrator to write
+   there.
+7. **Play with HD art**: start the port with `--hd`:
+   ```
+   target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe" --hd
+   ```
+   or double-click `Play HD.bat` (edit the `GAME=` line in it first if your game is not in
+   the `Insaniquarium Deluxe` folder next to this one). You can also make a desktop shortcut
+   to `winfish_rs.exe` and add the game path and `--hd` to its Target.
+
+Without `--hd` the game always uses the original art, whether or not the `hd` folder exists.
+To remove the HD art, delete the `hd` folder. `--model realesrgan-x4plus` (the general model)
+gives a softer result that stays closer to the original painting than the default cartoon
+model.
 
 ## Layout
 

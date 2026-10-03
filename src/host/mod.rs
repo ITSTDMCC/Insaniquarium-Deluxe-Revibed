@@ -11,6 +11,7 @@
 pub mod audio;
 pub mod music;
 pub mod openmpt;
+pub mod upscale;
 
 use crate::sexy::prelude::*;
 use crate::sexy::vfs::Vfs;
@@ -51,18 +52,23 @@ pub struct HostState {
 
 pub struct WinFishPlugin {
     pub game_dir: PathBuf,
+    /// Use the HD art in the game folder's `hd` directory (`--hd`); off by default.
+    pub hd: bool,
 }
 
 impl Plugin for WinFishPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(G::default())
+        let mut g = G::default();
+        g.hd.enabled = self.hd;
+        app.insert_resource(g)
             .insert_resource(GameDir(self.game_dir.clone()))
             .insert_resource(ClearColor(bevy::color::Color::BLACK))
             .init_resource::<HostState>()
             .add_systems(Startup, (setup_screen, start_vfs_load))
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
-            .add_systems(Update, (poll_vfs_load, focus, input, run_app, audio::play_sounds, music::sync_music, upload_screen, flush_saves, apply_screen_mode, fit_screen).chain());
+            .add_plugins(upscale::plugin)
+            .add_systems(Update, (poll_vfs_load, focus, input, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, apply_screen_mode, fit_screen).chain());
     }
 }
 
@@ -91,21 +97,44 @@ fn apply_screen_mode(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows:
 
 /// Scales the 640x480 picture to the window, keeping its shape (black bars on the long
 /// sides); `input` maps the mouse back through the same scale.
-fn fit_screen(windows: Query<&Window>, mut sprites: Query<&mut Sprite>) {
+fn fit_screen(windows: Query<&Window>, mut quads: Query<&mut Transform, With<ScreenQuad>>) {
     let Ok(window) = windows.single() else { return };
     let s = (window.width() / SCREEN_W as f32).min(window.height() / SCREEN_H as f32);
     if !(s > 0.0) {
         return;
     }
-    let size = Vec2::new(SCREEN_W as f32 * s, SCREEN_H as f32 * s);
-    for mut sprite in &mut sprites {
-        if sprite.custom_size != Some(size) {
-            sprite.custom_size = Some(size);
+    let scale = Vec3::new(s, s, 1.0);
+    for mut t in &mut quads {
+        if t.scale != scale {
+            t.scale = scale;
         }
     }
 }
 
-fn setup_screen(mut commands: Commands, mut images: ResMut<Assets<Image>>, mut host: ResMut<HostState>) {
+/// The quad the screen is drawn on.
+#[derive(Component)]
+struct ScreenQuad;
+
+/// The screen image changes every frame; touching the material rebinds it to the new
+/// texture.
+fn refresh_screen_material(host: Res<HostState>, quads: Query<&MeshMaterial2d<upscale::UpscaleMaterial>>, mut materials: ResMut<Assets<upscale::UpscaleMaterial>>) {
+    for m in &quads {
+        if let Some(mut mat) = materials.get_mut(&m.0)
+            && let Some(screen) = &host.screen
+            && mat.screen != *screen
+        {
+            mat.screen = screen.clone();
+        }
+    }
+}
+
+fn setup_screen(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<upscale::UpscaleMaterial>>,
+    mut host: ResMut<HostState>,
+) {
     commands.spawn(Camera2d);
     let img = Image::new_fill(
         Extent3d { width: SCREEN_W, height: SCREEN_H, depth_or_array_layers: 1 },
@@ -115,7 +144,12 @@ fn setup_screen(mut commands: Commands, mut images: ResMut<Assets<Image>>, mut h
         RenderAssetUsages::default(),
     );
     let handle = images.add(img);
-    commands.spawn(Sprite::from_image(handle.clone()));
+    commands.spawn((
+        Mesh2d(meshes.add(Rectangle::new(SCREEN_W as f32, SCREEN_H as f32))),
+        MeshMaterial2d(materials.add(upscale::UpscaleMaterial::new(handle.clone()))),
+        Transform::default(),
+        ScreenQuad,
+    ));
     host.screen = Some(handle);
 }
 
@@ -607,13 +641,48 @@ fn upload_screen(
         for (n, path) in shots {
             if host.frames == n {
                 let _ = image::save_buffer(path, &data, SCREEN_W, SCREEN_H, image::ExtendedColorType::Rgba8);
+                // With the HD screen up, it is saved too, as `<name>_hd.png`.
+                if let Some((bits, w, h)) = crate::game::boot::screen_bits_hd(&g) {
+                    let hd: Vec<u8> = bits.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, 255]).collect();
+                    let hd_path = path.strip_suffix(".png").map_or_else(|| format!("{path}_hd.png"), |stem| format!("{stem}_hd.png"));
+                    let _ = image::save_buffer(hd_path, &hd, w as u32, h as u32, image::ExtendedColorType::Rgba8);
+                }
                 if n == last {
                     exit.write(AppExit::Success);
                 }
             }
         }
     }
-    if let Some(mut img) = images.get_mut(&handle) {
+    // The HD screen (upscaled art), when it is up, replaces the picture. Its 0xAARRGGBB
+    // pixels are BGRA bytes in memory, so they are copied as is, and only after a redraw.
+    let hd = g.hd.active;
+    let (w, h, format) = if hd {
+        (g.hd.width as u32, g.hd.height as u32, TextureFormat::Bgra8UnormSrgb)
+    } else {
+        (SCREEN_W, SCREEN_H, TextureFormat::Rgba8UnormSrgb)
+    };
+    // A size or format change gets a new image (the material is pointed at it in
+    // `refresh_screen_material`).
+    let replace = images.get(&handle).is_none_or(|img| img.width() != w || img.height() != h || img.texture_descriptor.format != format);
+    if replace {
+        let img = Image::new_fill(Extent3d { width: w, height: h, depth_or_array_layers: 1 }, TextureDimension::D2, &[0, 0, 0, 255], format, RenderAssetUsages::default());
+        images.remove(&handle);
+        host.screen = Some(images.add(img));
+        g.hd.dirty = true;
+    }
+    let Some(handle) = host.screen.clone() else { return };
+    if hd {
+        if !std::mem::take(&mut g.hd.dirty) {
+            return;
+        }
+        if let Some(mut img) = images.get_mut(&handle)
+            && let Some(buf) = img.data.as_mut()
+        {
+            for (dst, px) in buf.chunks_exact_mut(4).zip(&g.hd.bits) {
+                dst.copy_from_slice(&px.to_le_bytes());
+            }
+        }
+    } else if let Some(mut img) = images.get_mut(&handle) {
         img.data = Some(data);
     }
 }

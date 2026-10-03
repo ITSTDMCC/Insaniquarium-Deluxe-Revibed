@@ -9,6 +9,7 @@ pub mod dialog;
 pub mod dialog_button;
 pub mod edit_widget;
 pub mod g;
+pub mod hd;
 pub mod graphics;
 pub mod image;
 pub mod image_font;

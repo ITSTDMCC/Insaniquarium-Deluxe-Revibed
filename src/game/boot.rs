@@ -105,6 +105,16 @@ pub fn draw_frame(g: &mut G) {
     let cmds = std::mem::take(&mut *crate::sexy::widget_manager::wm(g, wm).screen_cmds.lock().unwrap());
     let screen = crate::sexy::widget_manager::wm(g, wm).offset_0xc;
     let mut bits = std::mem::take(&mut g.image(screen).mBits);
+    // The HD screen (port addition) is painted from the same calls; when it starts, it is
+    // seeded with the screen as it was before this frame.
+    let mut hd = std::mem::take(&mut g.hd);
+    let hd_on = hd.available(g);
+    if hd_on {
+        hd.maintain(g);
+    } else {
+        hd.created.clear();
+    }
+    let prev = if hd_on && !hd.active { bits.clone() } else { Vec::new() };
     {
         let (w, h) = (g.image(screen).offset_0x20, g.image(screen).offset_0x24);
         let mut target = crate::sexy::blit::Target { bits: &mut bits, width: w, height: h };
@@ -112,10 +122,25 @@ pub fn draw_frame(g: &mut G) {
             target.apply(g, c);
         }
     }
+    if hd_on {
+        if !hd.active {
+            let (w, h) = (g.image(screen).offset_0x20, g.image(screen).offset_0x24);
+            hd.activate(&prev, w, h);
+        }
+        hd.paint(g, &cmds);
+    } else {
+        hd.active = false;
+    }
+    g.hd = hd;
     g.image(screen).mBits = bits;
     for img in std::mem::take(&mut g.frame_temp_images) {
         g.free(img);
     }
+}
+
+/// The HD screen's pixels and size, while it is displayed.
+pub fn screen_bits_hd(g: &G) -> Option<(Vec<u32>, i32, i32)> {
+    g.hd.active.then(|| (g.hd.bits.clone(), g.hd.width, g.hd.height))
 }
 
 /// The screen's pixels, for upload.

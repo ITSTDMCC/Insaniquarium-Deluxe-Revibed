@@ -15,7 +15,7 @@ pub struct Target<'a> {
 }
 
 #[inline]
-fn blend(d: u32, s: u32, a: u32) -> u32 {
+pub(crate) fn blend(d: u32, s: u32, a: u32) -> u32 {
     let ia = 0x100 - a;
     (((d & 0xff00ff) * ia >> 8) + ((s & 0xff00ff) * a >> 8)) & 0xffff00ff
         | ((((d & 0xff00) * ia >> 8) + ((s & 0xff00) * a >> 8)) & 0xff00)
@@ -23,7 +23,7 @@ fn blend(d: u32, s: u32, a: u32) -> u32 {
 }
 
 /// `NormalBlt` onto an opaque destination (`mHasAlpha`/`mHasTrans` clear).
-fn normal_px(d: u32, s: u32, c: Color) -> u32 {
+pub(crate) fn normal_px(d: u32, s: u32, c: Color) -> u32 {
     let white = c == Color::WHITE;
     if white {
         let a = s >> 24;
@@ -59,7 +59,7 @@ fn normal_px(d: u32, s: u32, c: Color) -> u32 {
 /// `AdditiveBlt`: with a white color the source is added as is, otherwise each channel is
 /// first scaled by the color pre-multiplied by its alpha; a source with `mHasAlpha` is also
 /// weighted by its pixel alpha. Each channel saturates at 255 (the 0x11d max table).
-fn additive_px(d: u32, s: u32, c: Color, has_alpha: bool) -> u32 {
+pub(crate) fn additive_px(d: u32, s: u32, c: Color, has_alpha: bool) -> u32 {
     let sat = |v: u32| v.min(0xff);
     let (mut sr, mut sg, mut sb) = (s & 0xff0000, s & 0xff00, s & 0xff);
     if c != Color::WHITE {
@@ -84,7 +84,7 @@ fn additive_px(d: u32, s: u32, c: Color, has_alpha: bool) -> u32 {
 
 /// `MemoryImage::mHasAlpha` as `CommitBits` derives it: some pixel is neither fully opaque
 /// nor fully transparent.
-fn has_alpha(img: &crate::sexy::image::Image) -> bool {
+pub(crate) fn has_alpha(img: &crate::sexy::image::Image) -> bool {
     img.mBits.iter().any(|p| {
         let a = p >> 24;
         a != 0 && a != 0xff
@@ -230,6 +230,10 @@ pub fn render_offscreen(g: &mut G, image: Ptr, draw: impl FnOnce(&mut G, &mut Gr
     let mut gfx = Graphics::new(image, w, h, out.clone());
     draw(g, &mut gfx);
     let cmds = std::mem::take(&mut *out.lock().unwrap());
+    // (Port addition) a file image drawn into no longer matches its HD art.
+    let mut hd = std::mem::take(&mut g.hd);
+    hd.changed(g, image);
+    g.hd = hd;
     let mut bits = std::mem::take(&mut g.image(image).mBits);
     {
         let mut t = Target { bits: &mut bits, width: w, height: h };

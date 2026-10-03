@@ -120,6 +120,8 @@ pub struct G {
     /// Stack `MemoryImage`s drawn this frame (the original blits them before they go out of
     /// scope; here blits are replayed at the end of the frame, so they are freed then).
     pub frame_temp_images: Vec<Ptr>,
+    /// The HD screen (port addition; see `crate::sexy::hd`).
+    pub hd: crate::sexy::hd::HdScreen,
     /// Resource globals (`DAT_005e8aa0` = IMAGE_FOOD ...).
     pub res: crate::sexy::res_gen::Res,
     /// Sounds started this frame, drained by the host.
@@ -142,6 +144,6 @@ pub struct G {
 
 impl Default for G {
     fn default() -> Self {
-        G { objs: vec![None], globals: Globals { DAT_005e15f8: 1, DAT_005e1600: true, DAT_005e15fc: 1, DAT_005df58c: 1, DAT_005df590: 5000, ..Globals::default() }, DAT_005eb928: MTRand::default(), now_time64: 0, tick_count: 0, cursor_num: 0, clipboard: Vec::new(), update_check_failed: false, crt_holdrand: 1, frame_temp_images: Vec::new(), res: Default::default(), sound_requests: Vec::new(), vfs: Default::default(), resource_manager: Default::default(), properties: Default::default(), registry: Default::default(), utc_offset_secs: 0, music: Default::default(), loading_thread: None }
+        G { objs: vec![None], globals: Globals { DAT_005e15f8: 1, DAT_005e1600: true, DAT_005e15fc: 1, DAT_005df58c: 1, DAT_005df590: 5000, ..Globals::default() }, DAT_005eb928: MTRand::default(), now_time64: 0, tick_count: 0, cursor_num: 0, clipboard: Vec::new(), update_check_failed: false, crt_holdrand: 1, frame_temp_images: Vec::new(), hd: Default::default(), res: Default::default(), sound_requests: Vec::new(), vfs: Default::default(), resource_manager: Default::default(), properties: Default::default(), registry: Default::default(), utc_offset_secs: 0, music: Default::default(), loading_thread: None }
     }
 }
