@@ -45,6 +45,8 @@ pub struct HostState {
     pub started: Option<std::time::Instant>,
     /// Logic updates run under `WINFISH_FIXED_STEPS`.
     pub fixed_updates: u64,
+    /// The screen mode last given to the window (`mIsWindowed`), once the app exists.
+    pub applied_windowed: Option<bool>,
 }
 
 pub struct WinFishPlugin {
@@ -55,11 +57,51 @@ impl Plugin for WinFishPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(G::default())
             .insert_resource(GameDir(self.game_dir.clone()))
+            .insert_resource(ClearColor(bevy::color::Color::BLACK))
             .init_resource::<HostState>()
             .add_systems(Startup, (setup_screen, start_vfs_load))
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
-            .add_systems(Update, (poll_vfs_load, focus, input, run_app, audio::play_sounds, music::sync_music, upload_screen, flush_saves).chain());
+            .add_systems(Update, (poll_vfs_load, focus, input, run_app, audio::play_sounds, music::sync_music, upload_screen, flush_saves, apply_screen_mode, fit_screen).chain());
+    }
+}
+
+/// `SexyAppBase::SwitchScreenMode` (replaced) on the window: the game's `mIsWindowed`
+/// (Options' Fullscreen checkbox, the saved `ScreenMode`) picks a normal window or exclusive
+/// full screen on the current monitor. The original also switched the display to 640x480;
+/// here the monitor keeps its mode and the picture is scaled up (`fit_screen`).
+fn apply_screen_mode(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows: Query<&mut Window>) {
+    let app = g.globals.DAT_005eb6a4;
+    if !host.booted || app == NULL {
+        return;
+    }
+    let windowed = g.sab(app).field_0x33b;
+    if host.applied_windowed == Some(windowed) {
+        return;
+    }
+    let Ok(mut window) = windows.single_mut() else { return };
+    window.mode = if windowed {
+        bevy::window::WindowMode::Windowed
+    } else {
+        bevy::window::WindowMode::Fullscreen(bevy::window::MonitorSelection::Current, bevy::window::VideoModeSelection::Current)
+    };
+    info!("screen mode: {}", if windowed { "windowed" } else { "full screen" });
+    host.applied_windowed = Some(windowed);
+}
+
+/// Scales the 640x480 picture to the window, keeping its shape (black bars on the long
+/// sides); `input` maps the mouse back through the same scale.
+fn fit_screen(windows: Query<&Window>, mut sprites: Query<&mut Sprite>) {
+    let Ok(window) = windows.single() else { return };
+    let s = (window.width() / SCREEN_W as f32).min(window.height() / SCREEN_H as f32);
+    if !(s > 0.0) {
+        return;
+    }
+    let size = Vec2::new(SCREEN_W as f32 * s, SCREEN_H as f32 * s);
+    for mut sprite in &mut sprites {
+        if sprite.custom_size != Some(size) {
+            sprite.custom_size = Some(size);
+        }
     }
 }
 
