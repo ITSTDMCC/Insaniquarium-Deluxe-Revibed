@@ -43,6 +43,11 @@ Never edit `..\Decomp\` or the database.
 - Drawing: `Graphics` methods are ported; the destination image's blitter calls become
   `ImageCmd`s with the original arguments; the renderer replays them onto a persistent target
   (the original only redraws dirty widgets onto a persistent screen surface).
+- Display additions (no original counterpart): the 640x480 screen is scaled to the window
+  (`src/host/upscale.*`, bicubic by default). With player-made art in `<game>/hd/images`
+  (`tools/upscale_art.py`), `src/sexy/hd.rs` also paints each frame's `ImageCmd`s onto a 4x
+  screen while the main menu is up, and that is displayed instead; the 640x480 screen (what the
+  game and the test hooks see) is unchanged.
 - Sound: `SoundInstance::Play` etc. become `SoundRequest`s.
 - Time: `_time64` reads `G::now_time64`, set by the host each frame.
 - Music: `BassMusicInterface`'s rules (play, stop, fade in/out per update, whole-percent

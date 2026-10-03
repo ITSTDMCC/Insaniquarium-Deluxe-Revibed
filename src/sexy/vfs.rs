@@ -52,6 +52,11 @@ impl Vfs {
         Vfs { files: files.into_iter().map(|(k, v)| (key(&k), v)).collect(), ..Default::default() }
     }
 
+    /// Some file lies under `prefix` (a normalized key prefix).
+    pub fn has_prefix(&self, prefix: &str) -> bool {
+        self.files.keys().any(|k| k.starts_with(prefix))
+    }
+
     pub fn read(&self, path: &str) -> Option<&[u8]> {
         self.files.get(&key(path)).map(|v| v.as_slice())
     }

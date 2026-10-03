@@ -113,9 +113,14 @@ struct ScreenQuad;
 
 /// The screen image changes every frame; touching the material rebinds it to the new
 /// texture.
-fn refresh_screen_material(quads: Query<&MeshMaterial2d<upscale::UpscaleMaterial>>, mut materials: ResMut<Assets<upscale::UpscaleMaterial>>) {
+fn refresh_screen_material(host: Res<HostState>, quads: Query<&MeshMaterial2d<upscale::UpscaleMaterial>>, mut materials: ResMut<Assets<upscale::UpscaleMaterial>>) {
     for m in &quads {
-        let _ = materials.get_mut(&m.0);
+        if let Some(mut mat) = materials.get_mut(&m.0)
+            && let Some(screen) = &host.screen
+            && mat.screen != *screen
+        {
+            mat.screen = screen.clone();
+        }
     }
 }
 
@@ -632,13 +637,37 @@ fn upload_screen(
         for (n, path) in shots {
             if host.frames == n {
                 let _ = image::save_buffer(path, &data, SCREEN_W, SCREEN_H, image::ExtendedColorType::Rgba8);
+                // With the HD screen up, it is saved too, as `<name>_hd.png`.
+                if let Some((bits, w, h)) = crate::game::boot::screen_bits_hd(&g) {
+                    let hd: Vec<u8> = bits.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, 255]).collect();
+                    let hd_path = path.strip_suffix(".png").map_or_else(|| format!("{path}_hd.png"), |stem| format!("{stem}_hd.png"));
+                    let _ = image::save_buffer(hd_path, &hd, w as u32, h as u32, image::ExtendedColorType::Rgba8);
+                }
                 if n == last {
                     exit.write(AppExit::Success);
                 }
             }
         }
     }
-    if let Some(mut img) = images.get_mut(&handle) {
+    // The HD screen (main menu with upscaled art) replaces the picture while it is up.
+    let (data, w, h) = match crate::game::boot::screen_bits_hd(&g) {
+        Some((bits, w, h)) => (bits.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, 255]).collect(), w as u32, h as u32),
+        None => (data, SCREEN_W, SCREEN_H),
+    };
+    // A size change gets a new image (the material is pointed at it in
+    // `refresh_screen_material`).
+    let resized = images.get(&handle).is_some_and(|img| img.width() != w || img.height() != h);
+    if resized {
+        let img = Image::new(
+            Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            TextureDimension::D2,
+            data,
+            TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::default(),
+        );
+        images.remove(&handle);
+        host.screen = Some(images.add(img));
+    } else if let Some(mut img) = images.get_mut(&handle) {
         img.data = Some(data);
     }
 }
