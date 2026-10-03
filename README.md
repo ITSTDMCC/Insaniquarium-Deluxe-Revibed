@@ -34,7 +34,7 @@ An AI agent or a test can play the game through environment variables:
 | `WINFISH_AUTOPLAY=1` | The port plays by itself (shoots aliens, collects coins, feeds, buys). |
 | `WINFISH_NO_SAVE=1` | Saves stay in memory (nothing written to the game folder). |
 | `WINFISH_NO_AUDIO=1` | No sound or music. |
-| `WINFISH_FILTER=bilinear` | Scales the picture with plain bilinear filtering instead of the smoothing filter. |
+| `WINFISH_FILTER=<name>` | How the picture is enlarged: `bicubic` (default, keeps every original pixel exact), `nearest` (sharp blocks), `bilinear` (soft), `xbr` (redraws edges as smooth curves). |
 
 A script is a list of `frame:action:arg` steps separated by `;` (frames count rendered
 frames from launch):

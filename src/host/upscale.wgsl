@@ -1,6 +1,11 @@
 // Draws the game's 640x480 screen scaled to the window.
 //
-// Filter 1 (default): xBR level 2 (Hyllian's edge-directed upscaler, as in libretro's
+// Filter 2 (default): Catmull-Rom bicubic. It passes exactly through every original pixel
+// and only fills in between them, so the art keeps its shapes and colours; it is sharper
+// than bilinear. The result is clamped to the four surrounding pixels, so edges get no
+// halos.
+// Filter 3: nearest (each original pixel as a sharp block).
+// Filter 1: xBR level 2 (Hyllian's edge-directed upscaler, as in libretro's
 // xbr-lv2): every output pixel starts as its source texel; where the texel sits on a
 // diagonal or shallow edge, the side of the edge the pixel lies on is blended with the
 // neighbour across it, so slopes come out as smooth lines instead of stair steps. The
@@ -10,7 +15,7 @@
 #import bevy_sprite::mesh2d_vertex_output::VertexOutput
 
 struct Params {
-    // x: filter (0 bilinear, 1 xBR)
+    // x: filter (0 bilinear, 1 xBR, 2 Catmull-Rom, 3 nearest)
     mode: vec4<f32>,
 };
 
@@ -152,10 +157,57 @@ fn xbr(uv: vec2<f32>) -> vec3<f32> {
     return select(res1, res2, c_df(E, res2) >= c_df(E, res1));
 }
 
+fn cr_weights(t: f32) -> vec4<f32> {
+    return vec4<f32>(
+        t * (-0.5 + t * (1.0 - 0.5 * t)),
+        1.0 + t * t * (-2.5 + 1.5 * t),
+        t * (0.5 + t * (2.0 - 1.5 * t)),
+        t * t * (-0.5 + 0.5 * t),
+    );
+}
+
+fn catmull_rom(uv: vec2<f32>) -> vec3<f32> {
+    let size = vec2<f32>(textureDimensions(screen));
+    let pos = uv * size - 0.5;
+    let p0 = floor(pos);
+    let t = pos - p0;
+    base = vec2<i32>(p0);
+    last = vec2<i32>(size) - vec2<i32>(1);
+    let wx = cr_weights(t.x);
+    let wy = cr_weights(t.y);
+    var sum = vec3<f32>(0.0);
+    for (var y = 0; y < 4; y++) {
+        var row = vec3<f32>(0.0);
+        for (var x = 0; x < 4; x++) {
+            row += texel(x - 1, y - 1) * wx[x];
+        }
+        sum += row * wy[y];
+    }
+    let a = texel(0, 0);
+    let b = texel(1, 0);
+    let c = texel(0, 1);
+    let d = texel(1, 1);
+    return clamp(sum, min(min(a, b), min(c, d)), max(max(a, b), max(c, d)));
+}
+
+fn nearest(uv: vec2<f32>) -> vec3<f32> {
+    let size = vec2<f32>(textureDimensions(screen));
+    base = vec2<i32>(floor(uv * size));
+    last = vec2<i32>(size) - vec2<i32>(1);
+    return texel(0, 0);
+}
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    if params.mode.x < 0.5 {
+    let mode = params.mode.x;
+    if mode < 0.5 {
         return vec4<f32>(textureSample(screen, screen_sampler, in.uv).rgb, 1.0);
     }
-    return vec4<f32>(xbr(in.uv), 1.0);
+    if mode < 1.5 {
+        return vec4<f32>(xbr(in.uv), 1.0);
+    }
+    if mode < 2.5 {
+        return vec4<f32>(catmull_rom(in.uv), 1.0);
+    }
+    return vec4<f32>(nearest(in.uv), 1.0);
 }
