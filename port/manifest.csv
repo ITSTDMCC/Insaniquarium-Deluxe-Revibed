@@ -2146,7 +2146,7 @@ address,qualified_name,file_path,size_bytes,text_sha256,region,status,rust_item,
 0049fab0,FUN_0049fab0,src/_global/seg_00490000.c,16,7c72a84fa8a3d0eef8d41ec269233865700840b43f04d0c9f736e4e45f46bdf2,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 0049fac0,FUN_0049fac0,src/_global/seg_00490000.c,20,94c9a58a7f823cf3c11499119eb1e62f9bc0ca0e4b3ea8c9e985aeac153171d1,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 0049fb10,FUN_0049fb10,src/_global/seg_00490000.c,920,3b79aec2d758ec396e3a0748dac4ae49ce199e43fdd39a689d86cece7f7d341d,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
-0049fed0,FUN_0049fed0,src/_global/seg_00490000.c,2079,8a2be7b1468114f0864857ee4b01e041b19924bf2ff0de2a23abed0f213e24b7,framework,ported,src/sexy/image_lib.rs:32,
+0049fed0,FUN_0049fed0,src/_global/seg_00490000.c,2079,8a2be7b1468114f0864857ee4b01e041b19924bf2ff0de2a23abed0f213e24b7,framework,ported,src/sexy/image_lib.rs:35,
 004a0720,FUN_004a0720,src/_global/seg_004a0000.c,296,a3985d89cc6aa646677f48a67c6cca0e3b073df239a9cad5ae6a076a1e779a83,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 004a0850,FUN_004a0850,src/_global/seg_004a0000.c,303,ee77c6bd32086b26b69d7b89e298a011f7c8912b2bbc62aa74cc0eb63ea68b3d,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 004a0980,FUN_004a0980,src/_global/seg_004a0000.c,254,43829530068bccbe037d04db02a363f99c17aff35f14eef5386c188001e89d39,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"

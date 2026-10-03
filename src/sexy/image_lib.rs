@@ -19,9 +19,12 @@ fn decode(vfs: &Vfs, path: &str, format: image::ImageFormat) -> Option<Image> {
     let bytes = vfs.read(path)?;
     let img = image::load_from_memory_with_format(bytes, format).ok()?.to_rgba8();
     let (w, h) = img.dimensions();
+    // The GIF loader writes the transparent colour index as 0 (black, alpha 0), not as its
+    // palette colour; an alpha image (`_name.gif`) reads its alpha from those low bits.
+    let gif = format == image::ImageFormat::Gif;
     let bits = img
         .pixels()
-        .map(|p| ((p[3] as u32) << 24) | ((p[0] as u32) << 16) | ((p[1] as u32) << 8) | p[2] as u32)
+        .map(|p| if gif && p[3] == 0 { 0 } else { ((p[3] as u32) << 24) | ((p[0] as u32) << 16) | ((p[1] as u32) << 8) | p[2] as u32 })
         .collect();
     Some(Image { mWidth: w as i32, mHeight: h as i32, mBits: bits })
 }
