@@ -9,8 +9,6 @@ This repository contains no game data. You need your own copy of Insaniquarium D
 
 ## Build and run
 
-Requirements: Windows (x64), a Rust toolchain (`rustup`, stable), and the game folder.
-
 ```
 cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
 ```
@@ -21,6 +19,26 @@ the libopenmpt DLLs (music) are copied next to it by `build.rs` and must stay be
 
 Profiles, saves and high scores are written into the game folder's `userdata`, like the
 original. Point the port at a copy if you want to keep the original folder untouched.
+
+### Building with an AI agent
+
+An AI coding agent (for example Claude Code) can build and launch the game for you. Give it
+a prompt like:
+
+> Clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed and read the README. The
+> game files are at `C:\path\to\Insaniquarium Deluxe`. Build the game and launch it.
+
+The agent clones the repo, runs `cargo build --release`, checks the game loads with a quick
+test run (`WINFISH_NO_SAVE=1`, `WINFISH_SNAPSHOT=300:title.png` should save a picture of the
+main menu), then launches `target\release\winfish_rs.exe` for you to play.
+
+## Software Requirements
+
+- Windows 10/11 x64
+- Rust stable (1.85+, MSVC toolchain) via [rustup](https://rustup.rs), plus Visual Studio
+  C++ Build Tools
+- A GPU with Vulkan, DirectX 12 or OpenGL support
+- Your own copy of Insaniquarium Deluxe
 
 ## Playing without a screen (scripted runs)
 
