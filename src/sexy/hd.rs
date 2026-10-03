@@ -1,6 +1,6 @@
 //! HD screen (a port addition with no counterpart in the original).
 //!
-//! When the game folder holds upscaled art (`hd\images\<name>.png`, exactly `K` times the
+//! Off unless the player starts the game with `--hd`. When the game folder holds upscaled art (`hd\images\<name>.png`, exactly `K` times the
 //! size of `images\<name>`, made from the player's own files by `tools/upscale_art.py`),
 //! the frame's recorded blitter calls are also painted onto a screen `K` times larger:
 //! images with HD art are copied from it pixel for pixel, the others are enlarged with
@@ -98,6 +98,8 @@ pub struct HdScreen {
     pub width: i32,
     pub height: i32,
     pub bits: Vec<u32>,
+    /// The player asked for HD art (`--hd`); off by default.
+    pub enabled: bool,
     /// Painted since the host last uploaded it.
     pub dirty: bool,
     /// Images with a file path allocated since the last frame (their HD art is requested).
@@ -118,7 +120,7 @@ impl std::fmt::Debug for HdScreen {
 
 impl Clone for HdScreen {
     fn clone(&self) -> Self {
-        HdScreen::default()
+        HdScreen { enabled: self.enabled, ..HdScreen::default() }
     }
 }
 
@@ -131,6 +133,9 @@ fn image_of(g: &G, p: Ptr) -> Option<&crate::sexy::image::Image> {
 
 impl HdScreen {
     pub fn available(&mut self, g: &G) -> bool {
+        if !self.enabled {
+            return false;
+        }
         self.dir.get_or_insert_with(|| Some(g.vfs.root.join("hd")).filter(|d| d.is_dir())).is_some()
     }
 

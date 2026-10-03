@@ -52,11 +52,15 @@ pub struct HostState {
 
 pub struct WinFishPlugin {
     pub game_dir: PathBuf,
+    /// Use the HD art in the game folder's `hd` directory (`--hd`); off by default.
+    pub hd: bool,
 }
 
 impl Plugin for WinFishPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(G::default())
+        let mut g = G::default();
+        g.hd.enabled = self.hd;
+        app.insert_resource(g)
             .insert_resource(GameDir(self.game_dir.clone()))
             .insert_resource(ClearColor(bevy::color::Color::BLACK))
             .init_resource::<HostState>()

@@ -108,7 +108,7 @@ pub fn draw_frame(g: &mut G) {
     // The HD screen (port addition) is painted from the same calls; when it starts, it is
     // seeded with the screen as it was before this frame.
     let mut hd = std::mem::take(&mut g.hd);
-    let hd_on = std::env::var_os("WINFISH_NO_HD").is_none() && hd.available(g);
+    let hd_on = hd.available(g);
     if hd_on {
         hd.maintain(g);
     } else {
