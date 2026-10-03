@@ -109,6 +109,11 @@ pub fn draw_frame(g: &mut G) {
     // when it starts, it is seeded with the screen as it was before this frame.
     let mut hd = std::mem::take(&mut g.hd);
     let hd_on = std::env::var_os("WINFISH_NO_HD").is_none() && hd.available(g);
+    if hd_on {
+        hd.maintain(g);
+    } else {
+        hd.created.clear();
+    }
     let prev = if hd_on && !hd.active { bits.clone() } else { Vec::new() };
     {
         let (w, h) = (g.image(screen).offset_0x20, g.image(screen).offset_0x24);

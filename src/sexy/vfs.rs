@@ -35,6 +35,10 @@ impl Vfs {
             for e in std::fs::read_dir(dir)? {
                 let p = e?.path();
                 if p.is_dir() {
+                    // HD art (port addition) is loaded per image by `crate::sexy::hd`.
+                    if dir == base && p.file_name().is_some_and(|n| n.eq_ignore_ascii_case("hd")) {
+                        continue;
+                    }
                     walk(base, &p, out)?;
                 } else {
                     let rel = p.strip_prefix(base).unwrap().to_string_lossy().to_string();
@@ -50,11 +54,6 @@ impl Vfs {
 
     pub fn from_files(files: impl IntoIterator<Item = (String, Vec<u8>)>) -> Vfs {
         Vfs { files: files.into_iter().map(|(k, v)| (key(&k), v)).collect(), ..Default::default() }
-    }
-
-    /// Some file lies under `prefix` (a normalized key prefix).
-    pub fn has_prefix(&self, prefix: &str) -> bool {
-        self.files.keys().any(|k| k.starts_with(prefix))
     }
 
     pub fn read(&self, path: &str) -> Option<&[u8]> {

@@ -7,15 +7,22 @@
 //! bilinear filtering. The 640x480 screen is still painted exactly as before and stays
 //! what the game and the test hooks see; the HD screen only replaces what is displayed.
 //!
+//! HD art is not part of the launch read. It is loaded on worker threads when the game
+//! loads the image it belongs to (a screen's or level's resources, before they are shown),
+//! and dropped when the game frees that image. Until it is ready the image is drawn from
+//! its original art. Art whose transparency does not match the image is not used.
+//!
 //! For now the HD screen is used while the main menu (the game selector) is up; elsewhere
 //! nothing changes. It assumes an image with HD art is not redrawn at runtime (true of the
-//! loaded resources the main menu uses).
+//! loaded resources).
 
 use crate::sexy::blit::{additive_px, has_alpha, normal_px};
 use crate::sexy::graphics::ImageCmd;
 use crate::sexy::prelude::*;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::{Arc, Mutex};
 
 /// The HD scale.
 pub const K: i32 = 4;
@@ -27,6 +34,64 @@ pub struct HdImage {
     pub bits: Vec<u32>,
 }
 
+enum Art {
+    Loading,
+    Ready(Option<Arc<HdImage>>),
+}
+
+/// A load for a worker: the image, its file path (the cache key), the HD file, and the
+/// image's size and transparency to check the art against.
+struct Job {
+    image: Ptr,
+    path: String,
+    file: PathBuf,
+    width: i32,
+    height: i32,
+    alpha: Vec<u8>,
+}
+
+struct Loader {
+    jobs: Sender<Job>,
+    done: Mutex<Receiver<(Ptr, String, Option<Arc<HdImage>>)>>,
+}
+
+impl Loader {
+    fn new() -> Loader {
+        let (jobs, job_rx) = channel::<Job>();
+        let (done_tx, done) = channel();
+        let job_rx = Arc::new(Mutex::new(job_rx));
+        let n = std::thread::available_parallelism().map_or(2, |n| n.get()).clamp(1, 4);
+        for _ in 0..n {
+            let (rx, tx) = (job_rx.clone(), done_tx.clone());
+            std::thread::spawn(move || {
+                loop {
+                    let job = match rx.lock().unwrap().recv() {
+                        Ok(job) => job,
+                        Err(_) => return,
+                    };
+                    let art = load_art(&job);
+                    if tx.send((job.image, job.path, art)).is_err() {
+                        return;
+                    }
+                }
+            });
+        }
+        Loader { jobs, done: Mutex::new(done) }
+    }
+}
+
+fn load_art(job: &Job) -> Option<Arc<HdImage>> {
+    let bytes = std::fs::read(&job.file).ok()?;
+    let i = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png).ok()?.to_rgba8();
+    let (w, h) = (i.width() as i32, i.height() as i32);
+    if w != job.width * K || h != job.height * K {
+        return None;
+    }
+    let bits = i.pixels().map(|p| ((p[3] as u32) << 24) | ((p[0] as u32) << 16) | ((p[1] as u32) << 8) | p[2] as u32).collect();
+    let art = HdImage { width: w, height: h, bits };
+    alpha_matches(&job.alpha, job.width, job.height, &art).then(|| Arc::new(art))
+}
+
 #[derive(Default)]
 pub struct HdScreen {
     /// The HD screen is being painted and displayed.
@@ -34,10 +99,14 @@ pub struct HdScreen {
     pub width: i32,
     pub height: i32,
     pub bits: Vec<u32>,
-    /// The game folder has HD art (checked once).
-    available: Option<bool>,
+    /// Images with a file path allocated since the last frame (their HD art is requested).
+    pub created: Vec<Ptr>,
+    /// The game folder's `hd` directory, when it exists (checked once).
+    dir: Option<Option<PathBuf>>,
     /// HD art by image (keyed with its file path, since heap slots are reused).
-    cache: HashMap<Ptr, (String, Option<Arc<HdImage>>)>,
+    cache: HashMap<Ptr, (String, Art)>,
+    loader: Option<Loader>,
+    frames: u32,
 }
 
 impl std::fmt::Debug for HdScreen {
@@ -61,34 +130,65 @@ fn image_of(g: &G, p: Ptr) -> Option<&crate::sexy::image::Image> {
 
 impl HdScreen {
     pub fn available(&mut self, g: &G) -> bool {
-        *self.available.get_or_insert_with(|| g.vfs.has_prefix("hd/images/"))
+        self.dir.get_or_insert_with(|| Some(g.vfs.root.join("hd")).filter(|d| d.is_dir())).is_some()
     }
 
-    fn art(&mut self, g: &G, p: Ptr) -> Option<Arc<HdImage>> {
-        let img = image_of(g, p)?;
-        let path = &img.field_0x4;
-        if let Some((cached_path, art)) = self.cache.get(&p)
-            && cached_path == path
-        {
-            return art.clone();
+    /// Once a frame: requests the art of newly loaded images, takes in finished loads, and
+    /// now and then drops the art of images the game has freed.
+    pub fn maintain(&mut self, g: &G) {
+        let created = std::mem::take(&mut self.created);
+        if !self.available(g) {
+            return;
         }
-        let art = if path.is_empty() {
-            None
-        } else {
-            g.vfs
-                .read(&format!("hd/{path}.png"))
-                .and_then(|bytes| image::load_from_memory_with_format(bytes, image::ImageFormat::Png).ok())
-                .map(|i| i.to_rgba8())
-                .filter(|i| i.width() as i32 == img.offset_0x20 * K && i.height() as i32 == img.offset_0x24 * K)
-                .map(|i| {
-                    let (w, h) = (i.width() as i32, i.height() as i32);
-                    let bits = i.pixels().map(|p| ((p[3] as u32) << 24) | ((p[0] as u32) << 16) | ((p[1] as u32) << 8) | p[2] as u32).collect();
-                    Arc::new(HdImage { width: w, height: h, bits })
-                })
-                .filter(|a| alpha_matches(img, a))
-        };
-        self.cache.insert(p, (path.clone(), art.clone()));
-        art
+        for p in created {
+            self.request(g, p);
+        }
+        if let Some(loader) = &self.loader {
+            let done = loader.done.lock().unwrap();
+            while let Ok((p, path, art)) = done.try_recv() {
+                if let Some((cached, state)) = self.cache.get_mut(&p)
+                    && *cached == path
+                {
+                    *state = Art::Ready(art);
+                }
+            }
+        }
+        self.frames = self.frames.wrapping_add(1);
+        if self.frames % 300 == 0 {
+            self.cache.retain(|&p, (path, _)| g.objs.get(p as usize).and_then(|o| o.as_ref()).is_some_and(|o| matches!(&o.node, Node::Image(i) if i.field_0x4 == *path)));
+        }
+    }
+
+    /// Queues the HD art of image `p` for loading (once per image and path).
+    fn request(&mut self, g: &G, p: Ptr) {
+        let Some(img) = image_of(g, p) else { return };
+        let path = img.field_0x4.clone();
+        if path.is_empty() || self.cache.get(&p).is_some_and(|(cached, _)| *cached == path) {
+            return;
+        }
+        let Some(Some(dir)) = &self.dir else { return };
+        let rel = crate::sexy::vfs::key(&path);
+        let file = dir.join(format!("{rel}.png"));
+        if !file.is_file() {
+            self.cache.insert(p, (path, Art::Ready(None)));
+            return;
+        }
+        let job = Job { image: p, path: path.clone(), file, width: img.offset_0x20, height: img.offset_0x24, alpha: img.mBits.iter().map(|b| (b >> 24) as u8).collect() };
+        self.cache.insert(p, (path, Art::Loading));
+        self.loader.get_or_insert_with(Loader::new).jobs.send(job).ok();
+    }
+
+    /// The image's HD art if it is loaded (requesting it if nobody has yet).
+    fn art(&mut self, g: &G, p: Ptr) -> Option<Arc<HdImage>> {
+        let path = &image_of(g, p)?.field_0x4;
+        match self.cache.get(&p) {
+            Some((cached, Art::Ready(art))) if cached == path => art.clone(),
+            Some((cached, Art::Loading)) if cached == path => None,
+            _ => {
+                self.request(g, p);
+                None
+            }
+        }
     }
 
     /// Starts painting the HD screen from the current 640x480 one (enlarged), so the parts
@@ -288,9 +388,8 @@ impl Painter<'_> {
 /// The HD art's transparency, averaged over each `K`x`K` block, is close to the image's own
 /// (it was made from this image, not from another resource sharing the file or a copy the
 /// game changed since).
-fn alpha_matches(img: &crate::sexy::image::Image, art: &HdImage) -> bool {
-    let (w, h) = (img.offset_0x20, img.offset_0x24);
-    if img.mBits.len() != (w * h) as usize || w == 0 || h == 0 {
+fn alpha_matches(alpha: &[u8], w: i32, h: i32, art: &HdImage) -> bool {
+    if alpha.len() != (w * h) as usize || w == 0 || h == 0 {
         return false;
     }
     let mut diff = 0u64;
@@ -303,7 +402,7 @@ fn alpha_matches(img: &crate::sexy::image::Image, art: &HdImage) -> bool {
                 }
             }
             let hd = sum / (K * K) as u32;
-            diff += (hd as i64 - (img.mBits[(y * w + x) as usize] >> 24) as i64).unsigned_abs();
+            diff += (hd as i64 - alpha[(y * w + x) as usize] as i64).unsigned_abs();
         }
     }
     diff / ((w * h) as u64) < 24

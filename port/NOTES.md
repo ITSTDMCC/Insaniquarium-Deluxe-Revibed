@@ -47,7 +47,9 @@ Never edit `..\Decomp\` or the database.
   (`src/host/upscale.*`, bicubic by default). With player-made art in `<game>/hd/images`
   (`tools/upscale_art.py`), `src/sexy/hd.rs` also paints each frame's `ImageCmd`s onto a 4x
   screen while the main menu is up, and that is displayed instead; the 640x480 screen (what the
-  game and the test hooks see) is unchanged.
+  game and the test hooks see) is unchanged. The `hd` folder is skipped by the launch read; each
+  image's art is loaded on worker threads when the game allocates the image (`G::alloc` queues
+  it) and dropped after the image is freed.
 - Sound: `SoundInstance::Play` etc. become `SoundRequest`s.
 - Time: `_time64` reads `G::now_time64`, set by the host each frame.
 - Music: `BassMusicInterface`'s rules (play, stop, fade in/out per update, whole-percent
