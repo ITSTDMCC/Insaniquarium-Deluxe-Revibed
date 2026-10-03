@@ -11,6 +11,7 @@
 pub mod audio;
 pub mod music;
 pub mod openmpt;
+pub mod upscale;
 
 use crate::sexy::prelude::*;
 use crate::sexy::vfs::Vfs;
@@ -62,7 +63,8 @@ impl Plugin for WinFishPlugin {
             .add_systems(Startup, (setup_screen, start_vfs_load))
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
-            .add_systems(Update, (poll_vfs_load, focus, input, run_app, audio::play_sounds, music::sync_music, upload_screen, flush_saves, apply_screen_mode, fit_screen).chain());
+            .add_plugins(upscale::plugin)
+            .add_systems(Update, (poll_vfs_load, focus, input, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, apply_screen_mode, fit_screen).chain());
     }
 }
 
@@ -91,21 +93,39 @@ fn apply_screen_mode(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows:
 
 /// Scales the 640x480 picture to the window, keeping its shape (black bars on the long
 /// sides); `input` maps the mouse back through the same scale.
-fn fit_screen(windows: Query<&Window>, mut sprites: Query<&mut Sprite>) {
+fn fit_screen(windows: Query<&Window>, mut quads: Query<&mut Transform, With<ScreenQuad>>) {
     let Ok(window) = windows.single() else { return };
     let s = (window.width() / SCREEN_W as f32).min(window.height() / SCREEN_H as f32);
     if !(s > 0.0) {
         return;
     }
-    let size = Vec2::new(SCREEN_W as f32 * s, SCREEN_H as f32 * s);
-    for mut sprite in &mut sprites {
-        if sprite.custom_size != Some(size) {
-            sprite.custom_size = Some(size);
+    let scale = Vec3::new(s, s, 1.0);
+    for mut t in &mut quads {
+        if t.scale != scale {
+            t.scale = scale;
         }
     }
 }
 
-fn setup_screen(mut commands: Commands, mut images: ResMut<Assets<Image>>, mut host: ResMut<HostState>) {
+/// The quad the screen is drawn on.
+#[derive(Component)]
+struct ScreenQuad;
+
+/// The screen image changes every frame; touching the material rebinds it to the new
+/// texture.
+fn refresh_screen_material(quads: Query<&MeshMaterial2d<upscale::UpscaleMaterial>>, mut materials: ResMut<Assets<upscale::UpscaleMaterial>>) {
+    for m in &quads {
+        let _ = materials.get_mut(&m.0);
+    }
+}
+
+fn setup_screen(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<upscale::UpscaleMaterial>>,
+    mut host: ResMut<HostState>,
+) {
     commands.spawn(Camera2d);
     let img = Image::new_fill(
         Extent3d { width: SCREEN_W, height: SCREEN_H, depth_or_array_layers: 1 },
@@ -115,7 +135,12 @@ fn setup_screen(mut commands: Commands, mut images: ResMut<Assets<Image>>, mut h
         RenderAssetUsages::default(),
     );
     let handle = images.add(img);
-    commands.spawn(Sprite::from_image(handle.clone()));
+    commands.spawn((
+        Mesh2d(meshes.add(Rectangle::new(SCREEN_W as f32, SCREEN_H as f32))),
+        MeshMaterial2d(materials.add(upscale::UpscaleMaterial::new(handle.clone()))),
+        Transform::default(),
+        ScreenQuad,
+    ));
     host.screen = Some(handle);
 }
 
