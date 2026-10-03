@@ -1,0 +1,20 @@
+[package]
+name = "winfish_rs"
+version = "0.1.0"
+edition = "2024"
+description = "Rust/Bevy port of Insaniquarium Deluxe (WinFish.exe), translated from gamedb_index/winfish.sqlite"
+publish = false
+
+[dependencies]
+bevy = "0.19.1"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"] }
+
+[dev-dependencies]
+rusqlite = { version = "0.40", features = ["bundled"] }
+sha2 = "0.10"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
