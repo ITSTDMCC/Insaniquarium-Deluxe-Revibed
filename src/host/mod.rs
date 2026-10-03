@@ -649,24 +649,35 @@ fn upload_screen(
             }
         }
     }
-    // The HD screen (main menu with upscaled art) replaces the picture while it is up.
-    let (data, w, h) = match crate::game::boot::screen_bits_hd(&g) {
-        Some((bits, w, h)) => (bits.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, 255]).collect(), w as u32, h as u32),
-        None => (data, SCREEN_W, SCREEN_H),
+    // The HD screen (upscaled art), when it is up, replaces the picture. Its 0xAARRGGBB
+    // pixels are BGRA bytes in memory, so they are copied as is, and only after a redraw.
+    let hd = g.hd.active;
+    let (w, h, format) = if hd {
+        (g.hd.width as u32, g.hd.height as u32, TextureFormat::Bgra8UnormSrgb)
+    } else {
+        (SCREEN_W, SCREEN_H, TextureFormat::Rgba8UnormSrgb)
     };
-    // A size change gets a new image (the material is pointed at it in
+    // A size or format change gets a new image (the material is pointed at it in
     // `refresh_screen_material`).
-    let resized = images.get(&handle).is_some_and(|img| img.width() != w || img.height() != h);
-    if resized {
-        let img = Image::new(
-            Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-            TextureDimension::D2,
-            data,
-            TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::default(),
-        );
+    let replace = images.get(&handle).is_none_or(|img| img.width() != w || img.height() != h || img.texture_descriptor.format != format);
+    if replace {
+        let img = Image::new_fill(Extent3d { width: w, height: h, depth_or_array_layers: 1 }, TextureDimension::D2, &[0, 0, 0, 255], format, RenderAssetUsages::default());
         images.remove(&handle);
         host.screen = Some(images.add(img));
+        g.hd.dirty = true;
+    }
+    let Some(handle) = host.screen.clone() else { return };
+    if hd {
+        if !std::mem::take(&mut g.hd.dirty) {
+            return;
+        }
+        if let Some(mut img) = images.get_mut(&handle)
+            && let Some(buf) = img.data.as_mut()
+        {
+            for (dst, px) in buf.chunks_exact_mut(4).zip(&g.hd.bits) {
+                dst.copy_from_slice(&px.to_le_bytes());
+            }
+        }
     } else if let Some(mut img) = images.get_mut(&handle) {
         img.data = Some(data);
     }

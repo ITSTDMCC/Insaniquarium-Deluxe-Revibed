@@ -60,22 +60,24 @@ target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe"
 To play step by step: run with a snapshot, look at the picture, add the next clicks to the
 script, run again (with `WINFISH_FIXED_STEPS=1` the same script gives the same game).
 
-## HD art (optional, main menu for now)
+## HD art (optional)
 
-`tools/upscale_art.py` makes 4x art (the main menu, plus the dialogs, buttons, checkboxes,
-sliders and fonts) from your own copy of the game with Real-ESRGAN
-(realesrgan-ncnn-vulkan, BSD-3-Clause, from https://github.com/xinntao/Real-ESRGAN/releases,
-v0.2.5.0 Windows zip). It writes `hd\images\*.png` inside the game folder and never changes the
-original files; no art is stored in this repository.
+`tools/upscale_art.py` makes 4x art for every image and font from your own copy of the game
+with Real-ESRGAN (realesrgan-ncnn-vulkan, BSD-3-Clause, from
+https://github.com/xinntao/Real-ESRGAN/releases, v0.2.5.0 Windows zip). It writes
+`hd\images\*.png` and `hd\data\*.png` inside the game folder (about 430 MB) and never changes
+the original files; no art is stored in this repository.
 
 ```
 pip install pillow
 python tools/upscale_art.py --game "C:\path\to\Insaniquarium Deluxe" --esrgan "C:\path\to\realesrgan"
 ```
 
-While the main menu is up, the port then draws it at 4x resolution with that art (other
-images on the screen are enlarged smoothly). Every other screen is drawn as before. Delete the
-`hd` folder, or set `WINFISH_NO_HD=1`, to go back to the original art.
+The port then draws the game at 4x resolution with that art. Each image's HD art is loaded in
+the background when the game loads the image, so it is ready before the screen shows; images
+without HD art (or that the game redraws at runtime) are enlarged smoothly. With the full set
+the game uses about 2 GB of memory. Delete the `hd` folder, or set `WINFISH_NO_HD=1`, to go
+back to the original art.
 
 ## Layout
 

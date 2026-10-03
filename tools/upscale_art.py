@@ -14,7 +14,7 @@ pass its folder with --esrgan.
 
 Usage:
   python tools/upscale_art.py --game "C:\\path\\to\\Insaniquarium Deluxe" --esrgan "C:\\path\\to\\realesrgan"
-  [--model realesrgan-x4plus-anime] [--set menu,ui] [paths...]   (paths like images\\store)
+  [--model realesrgan-x4plus-anime] [--set all|menu|ui] [paths...]   (paths like images\\store)
 
 Needs Pillow (`pip install pillow`).
 """
@@ -34,6 +34,8 @@ SETS = {
            'images/mbuttonu', 'images/mbuttono', 'images/uncheckbutton', 'images/checkbutton',
            'images/slidertrack', 'images/sliderwidget', 'images/menubar', 'images/mbreflection',
            'images/waitbar', 'images/trophybar', 'images/speechbubble', 'data/*'],
+    # Everything: every image and font of the game.
+    'all': ['images/*', 'data/*'],
 }
 
 
@@ -160,7 +162,7 @@ def main():
     ap.add_argument('--game', required=True)
     ap.add_argument('--esrgan', required=True, help='folder holding realesrgan-ncnn-vulkan.exe and models\\')
     ap.add_argument('--model', default='realesrgan-x4plus-anime')
-    ap.add_argument('--set', default='menu,ui', help='comma-separated: ' + ', '.join(SETS))
+    ap.add_argument('--set', default='all', help='comma-separated: ' + ', '.join(SETS))
     ap.add_argument('paths', nargs='*')
     args = ap.parse_args()
     files = Files(args.game)

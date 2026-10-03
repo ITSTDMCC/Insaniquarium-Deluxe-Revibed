@@ -12,9 +12,8 @@
 //! and dropped when the game frees that image. Until it is ready the image is drawn from
 //! its original art. Art whose transparency does not match the image is not used.
 //!
-//! For now the HD screen is used while the main menu (the game selector) is up; elsewhere
-//! nothing changes. It assumes an image with HD art is not redrawn at runtime (true of the
-//! loaded resources).
+//! A file image the game draws into or cuts at runtime (`render_offscreen`, `CutOut`) drops
+//! its HD art and is drawn from its pixels from then on.
 
 use crate::sexy::blit::{additive_px, has_alpha, normal_px};
 use crate::sexy::graphics::ImageCmd;
@@ -99,6 +98,8 @@ pub struct HdScreen {
     pub width: i32,
     pub height: i32,
     pub bits: Vec<u32>,
+    /// Painted since the host last uploaded it.
+    pub dirty: bool,
     /// Images with a file path allocated since the last frame (their HD art is requested).
     pub created: Vec<Ptr>,
     /// The game folder's `hd` directory, when it exists (checked once).
@@ -148,6 +149,7 @@ impl HdScreen {
             while let Ok((p, path, art)) = done.try_recv() {
                 if let Some((cached, state)) = self.cache.get_mut(&p)
                     && *cached == path
+                    && matches!(state, Art::Loading)
                 {
                     *state = Art::Ready(art);
                 }
@@ -178,6 +180,15 @@ impl HdScreen {
         self.loader.get_or_insert_with(Loader::new).jobs.send(job).ok();
     }
 
+    /// The game changed image `p`'s pixels: its HD art no longer applies.
+    pub fn changed(&mut self, g: &G, p: Ptr) {
+        if let Some(img) = image_of(g, p)
+            && !img.field_0x4.is_empty()
+        {
+            self.cache.insert(p, (img.field_0x4.clone(), Art::Ready(None)));
+        }
+    }
+
     /// The image's HD art if it is loaded (requesting it if nobody has yet).
     fn art(&mut self, g: &G, p: Ptr) -> Option<Arc<HdImage>> {
         let path = &image_of(g, p)?.field_0x4;
@@ -203,12 +214,17 @@ impl HdScreen {
             }
         }
         self.active = true;
+        self.dirty = true;
     }
 
     /// Paints a frame's recorded blitter calls (in 640x480 coordinates) onto the HD screen.
     /// The screen is split into bands painted in parallel; each band applies every call in
     /// order, so the result is the same as painting them one after another.
     pub fn paint(&mut self, g: &G, cmds: &[ImageCmd]) {
+        if cmds.is_empty() {
+            return;
+        }
+        self.dirty = true;
         let mut sources: HashMap<Ptr, Source> = HashMap::new();
         for c in cmds {
             let (image, additive) = match *c {
@@ -421,6 +437,17 @@ fn bilinear(bits: &[u32], w: i32, _h: i32, rect: Rect, u: f32, v: f32) -> u32 {
     let x1 = (x0 + 1).min(rect.mX + rect.mWidth - 1);
     let y1 = (y0 + 1).min(rect.mY + rect.mHeight - 1);
     let (fx, fy) = (u - x0 as f32, v - y0 as f32);
+    let (p00, p10) = (bits[(y0 * w + x0) as usize], bits[(y0 * w + x1) as usize]);
+    let (p01, p11) = (bits[(y1 * w + x0) as usize], bits[(y1 * w + x1) as usize]);
+    if (p00 & p10 & p01 & p11) >> 24 == 0xff {
+        let (wx, wy) = ((fx * 256.0) as u32, (fy * 256.0) as u32);
+        let lerp = |a: u32, b: u32, t: u32| {
+            let rb = ((a & 0xff00ff) * (256 - t) + (b & 0xff00ff) * t) >> 8 & 0xff00ff;
+            let g = ((a & 0xff00) * (256 - t) + (b & 0xff00) * t) >> 8 & 0xff00;
+            rb | g
+        };
+        return lerp(lerp(p00, p10, wx), lerp(p01, p11, wx), wy) | 0xff00_0000;
+    }
     let mut acc = [0f32; 4];
     for (x, y, wt) in [(x0, y0, (1.0 - fx) * (1.0 - fy)), (x1, y0, fx * (1.0 - fy)), (x0, y1, (1.0 - fx) * fy), (x1, y1, fx * fy)] {
         let p = bits[(y * w + x) as usize];

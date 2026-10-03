@@ -230,6 +230,10 @@ pub fn render_offscreen(g: &mut G, image: Ptr, draw: impl FnOnce(&mut G, &mut Gr
     let mut gfx = Graphics::new(image, w, h, out.clone());
     draw(g, &mut gfx);
     let cmds = std::mem::take(&mut *out.lock().unwrap());
+    // (Port addition) a file image drawn into no longer matches its HD art.
+    let mut hd = std::mem::take(&mut g.hd);
+    hd.changed(g, image);
+    g.hd = hd;
     let mut bits = std::mem::take(&mut g.image(image).mBits);
     {
         let mut t = Target { bits: &mut bits, width: w, height: h };

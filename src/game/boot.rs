@@ -105,8 +105,8 @@ pub fn draw_frame(g: &mut G) {
     let cmds = std::mem::take(&mut *crate::sexy::widget_manager::wm(g, wm).screen_cmds.lock().unwrap());
     let screen = crate::sexy::widget_manager::wm(g, wm).offset_0xc;
     let mut bits = std::mem::take(&mut g.image(screen).mBits);
-    // The HD screen (port addition) is painted from the same calls while the main menu is up;
-    // when it starts, it is seeded with the screen as it was before this frame.
+    // The HD screen (port addition) is painted from the same calls; when it starts, it is
+    // seeded with the screen as it was before this frame.
     let mut hd = std::mem::take(&mut g.hd);
     let hd_on = std::env::var_os("WINFISH_NO_HD").is_none() && hd.available(g);
     if hd_on {
@@ -122,9 +122,7 @@ pub fn draw_frame(g: &mut G) {
             target.apply(g, c);
         }
     }
-    let app = g.globals.DAT_005e8f28;
-    let menu = app != NULL && g.wfa(app).offset_0xc != NULL;
-    if menu && hd_on {
+    if hd_on {
         if !hd.active {
             let (w, h) = (g.image(screen).offset_0x20, g.image(screen).offset_0x24);
             hd.activate(&prev, w, h);
