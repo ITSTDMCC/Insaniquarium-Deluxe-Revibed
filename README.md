@@ -62,7 +62,8 @@ script, run again (with `WINFISH_FIXED_STEPS=1` the same script gives the same g
 
 ## HD art (optional, main menu for now)
 
-`tools/upscale_art.py` makes 4x art from your own copy of the game with Real-ESRGAN
+`tools/upscale_art.py` makes 4x art (the main menu, plus the dialogs, buttons, checkboxes,
+sliders and fonts) from your own copy of the game with Real-ESRGAN
 (realesrgan-ncnn-vulkan, BSD-3-Clause, from https://github.com/xinntao/Real-ESRGAN/releases,
 v0.2.5.0 Windows zip). It writes `hd\images\*.png` inside the game folder and never changes the
 original files; no art is stored in this repository.

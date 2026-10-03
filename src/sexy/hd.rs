@@ -85,6 +85,7 @@ impl HdScreen {
                     let bits = i.pixels().map(|p| ((p[3] as u32) << 24) | ((p[0] as u32) << 16) | ((p[1] as u32) << 8) | p[2] as u32).collect();
                     Arc::new(HdImage { width: w, height: h, bits })
                 })
+                .filter(|a| alpha_matches(img, a))
         };
         self.cache.insert(p, (path.clone(), art.clone()));
         art
@@ -282,6 +283,30 @@ impl Painter<'_> {
             }
         }
     }
+}
+
+/// The HD art's transparency, averaged over each `K`x`K` block, is close to the image's own
+/// (it was made from this image, not from another resource sharing the file or a copy the
+/// game changed since).
+fn alpha_matches(img: &crate::sexy::image::Image, art: &HdImage) -> bool {
+    let (w, h) = (img.offset_0x20, img.offset_0x24);
+    if img.mBits.len() != (w * h) as usize || w == 0 || h == 0 {
+        return false;
+    }
+    let mut diff = 0u64;
+    for y in 0..h {
+        for x in 0..w {
+            let mut sum = 0u32;
+            for dy in 0..K {
+                for dx in 0..K {
+                    sum += art.bits[((y * K + dy) * art.width + x * K + dx) as usize] >> 24;
+                }
+            }
+            let hd = sum / (K * K) as u32;
+            diff += (hd as i64 - (img.mBits[(y * w + x) as usize] >> 24) as i64).unsigned_abs();
+        }
+    }
+    diff / ((w * h) as u64) < 24
 }
 
 fn scale(r: Rect) -> Rect {
