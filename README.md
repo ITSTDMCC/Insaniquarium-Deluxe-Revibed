@@ -26,7 +26,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 **Running with HD art** 
 - 8 GB RAM (the game uses about 2.2 GB)
 - A 4-core CPU or better
-- About 450 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
+- About 475 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
 - A Vulkan-capable graphics card, to run the upscaler once
 
 ## Step by step (from a fresh Windows install)
