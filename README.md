@@ -87,15 +87,14 @@ original. Point the port at a copy if you want to keep the original folder untou
 
 ## Building with an AI agent
 
-An AI coding agent (for example Claude Code) can build and launch the game for you. Give it
-a prompt like:
+An AI coding agent (for example Claude Code) can build the game for you. Give it a prompt
+like:
 
 > Clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed and read the README. The
-> game files are at `C:\path\to\Insaniquarium Deluxe`. Build the game and launch it.
+> game files are at `C:\path\to\Insaniquarium Deluxe`. Build the game, but don't launch it.
 
-The agent clones the repo, runs `cargo build --release`, checks the game loads with a quick
-test run (`WINFISH_NO_SAVE=1`, `WINFISH_SNAPSHOT=300:title.png` should save a picture of the
-main menu), then launches `target\release\winfish_rs.exe` for you to play.
+The agent clones the repo and runs `cargo build --release`. When it's done, start the game
+yourself with `target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe"`.
 
 ## HD art (optional, Powered by https://github.com/xinntao/real-esrgan)
 
