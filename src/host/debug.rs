@@ -32,6 +32,9 @@ pub struct DebugMenu {
     pub alien: usize,
     /// Smoothed frame time (ms).
     frame_ms: f64,
+    /// Logic updates per second, measured each second from the app's update counter.
+    ups: f64,
+    ups_window: (f64, i32),
     /// The last action's result, shown under the list.
     message: String,
     /// The game folder has HD art (checked once).
@@ -203,6 +206,9 @@ pub fn keys(
     if menu.message != before {
         info!("debug menu: {}", menu.message);
     }
+    if std::env::var_os("WINFISH_DEBUG_MENU").is_some() && host.frames % 300 == 0 {
+        info!("debug menu: {:.1} game updates/s", menu.ups);
+    }
 }
 
 /// Refreshes the overlay while it is open.
@@ -219,6 +225,21 @@ pub fn overlay(
 ) {
     let dt = time.delta_secs_f64() * 1000.0;
     menu.frame_ms = if menu.frame_ms == 0.0 { dt } else { menu.frame_ms * 0.95 + dt * 0.05 };
+    // Logic updates per second (the app's update counter, +0x47c).
+    let app = g.globals.DAT_005eb6a4;
+    if app != NULL {
+        let count = g.sab(app).field_0x47c;
+        let (elapsed, start) = menu.ups_window;
+        if elapsed == 0.0 && start == 0 {
+            menu.ups_window = (0.0, count);
+        } else {
+            menu.ups_window.0 += dt;
+            if menu.ups_window.0 >= 1000.0 {
+                menu.ups = (count - start) as f64 * 1000.0 / menu.ups_window.0;
+                menu.ups_window = (0.0, count);
+            }
+        }
+    }
     let want = if menu.open { Visibility::Visible } else { Visibility::Hidden };
     for mut v in &mut panel {
         if *v != want {
@@ -253,7 +274,7 @@ pub fn overlay(
     let s = format!(
         "DEBUG MENU (experimental)   F1 closes\n\
          \n\
-         {fps:.0} fps ({:.1} ms)   window {window}\n\
+         {fps:.0} fps ({:.1} ms)   {:.0} game updates/s   window {window}\n\
          HD art: {hd}   filter: {filter}   speed: {speed}\n\
          money: {money}   shells: {shells}\n\
          \n\
@@ -267,7 +288,7 @@ pub fn overlay(
          8  Choose the alien\n\
          \n\
          {}",
-        menu.frame_ms, ALIENS[menu.alien].1, menu.message
+        menu.frame_ms, menu.ups, ALIENS[menu.alien].1, menu.message
     );
     for mut t in &mut text {
         if t.0 != s {

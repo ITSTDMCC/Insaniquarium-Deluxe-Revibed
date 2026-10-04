@@ -51,7 +51,8 @@ Never edit `..\Decomp\` or the database.
   image's art is loaded on worker threads when the game allocates the image (`G::alloc` queues
   it) and dropped after the image is freed.
 - Sound: `SoundInstance::Play` etc. become `SoundRequest`s.
-- Time: `_time64` reads `G::now_time64`, set by the host each frame.
+- Time: `_time64` reads `G::now_time64`, set by the host each frame. Logic updates run at the
+  app's `mFrameTime` (+0x44c; WinFishApp sets 28 ms, about 36 a second), as `SexyAppBase::Process`.
 - Music: `BassMusicInterface`'s rules (play, stop, fade in/out per update, whole-percent
   volumes, global volume `ftol(40 * mMusicVolume)`%) are in `src/sexy/music.rs` (`G::music`);
   `src/host/music.rs` renders the MO3 modules with libopenmpt (vendored in

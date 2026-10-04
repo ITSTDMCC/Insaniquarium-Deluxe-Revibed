@@ -25,8 +25,19 @@ use std::path::PathBuf;
 
 pub const SCREEN_W: u32 = 640;
 pub const SCREEN_H: u32 = 480;
-/// `SexyAppBase::mFrameTime` default (ms per logic update).
+/// `SexyAppBase::mFrameTime` default (ms per logic update), used until the app exists.
 pub const FRAME_TIME_MS: f64 = 10.0;
+
+/// The app's `mFrameTime` (+0x44c): `SexyAppBase::Process` runs one logic update per that
+/// many milliseconds. WinFishApp's constructor sets 28 (about 36 updates a second).
+fn frame_time_ms(g: &mut G) -> f64 {
+    let app = g.globals.DAT_005eb6a4;
+    if app == NULL {
+        return FRAME_TIME_MS;
+    }
+    let t = g.sab(app).field_0x44c;
+    if t > 0 { t as f64 } else { FRAME_TIME_MS }
+}
 
 /// Where the game's install lives (images/, data/, properties/, sounds/).
 #[derive(Resource, Clone)]
@@ -566,7 +577,7 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>, debug
     // derives GetTickCount from the update count, so scripted runs are reproducible.
     let fixed = std::env::var("WINFISH_FIXED_STEPS").ok().and_then(|v| v.parse::<u32>().ok());
     if let Some(n) = fixed {
-        g.tick_count = (host.fixed_updates as f64 * FRAME_TIME_MS) as u32;
+        g.tick_count = (host.fixed_updates as f64 * frame_time_ms(&mut g)) as u32;
         crate::game::boot::loading_thread_slice(&mut g);
         for _ in 0..n {
             crate::game::boot::update_frame(&mut g);
@@ -586,9 +597,10 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>, debug
     // At most 10 catch-up updates per frame, like the framework's frame skip limit.
     let max_steps = (10.0 * speed.max(1.0)) as i32;
     let mut steps = 0;
-    while host.accum_ms >= FRAME_TIME_MS && steps < max_steps {
+    let frame_ms = frame_time_ms(&mut g);
+    while host.accum_ms >= frame_ms && steps < max_steps {
         crate::game::boot::update_frame(&mut g);
-        host.accum_ms -= FRAME_TIME_MS;
+        host.accum_ms -= frame_ms;
         steps += 1;
     }
     if steps == max_steps {
