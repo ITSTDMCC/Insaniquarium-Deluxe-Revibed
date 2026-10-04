@@ -33,7 +33,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 
 1. **Install the game** (for example from Steam) and note its folder, e.g.
    `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`.
-2. **Build the port** as described in "Build and run" above (install Rust from
+2. **Build the port** as described in "Build and run" below (install Rust from
    https://rustup.rs, then run `cargo build --release` in this folder). Check that the game
    starts with its original art.
 3. **Install Python 3** from https://www.python.org/downloads/. In the installer, tick
