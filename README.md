@@ -12,7 +12,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 
 - Windows 10/11 x64
 - Your own copy of Insaniquarium Deluxe
-- Rust stable (1.85+, MSVC toolchain) via [rustup](https://rustup.rs), plus Visual Studio
+- Rust stable (1.85+, MSVC toolchain) via [rustup]([https://rustup.rs](https://rust-lang.org/tools/install/)), plus Visual Studio
   C++ Build Tools
 - A GPU with Vulkan, DirectX 12 or OpenGL support
 - Python 3 (Optional, if you want to use the "HD art"). 
