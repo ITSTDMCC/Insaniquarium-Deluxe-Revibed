@@ -68,20 +68,20 @@ Do the steps above first. Then:
    download `realesrgan-ncnn-vulkan-20220424-windows.zip` (about 45 MB) and unzip it to a
    folder of your choice, e.g. `C:\Tools\realesrgan`. That folder should contain
    `realesrgan-ncnn-vulkan.exe` and a `models` folder.
-4. **Make the HD art.** Open command prompt and navigate to this unzipped folder, run (with your own paths):
+4. **Make the HD art.** Go to the root of your Insaniquarium-Deluxe-Revibed port folder and run upscale_art.bat:
    ```
    python tools\upscale_art.py --game "C:\path\to\Insaniquarium Deluxe" --esrgan "C:\path\to\realesrgan"
    ```
-   It takes a few minutes and prints one line per image. When it ends with `wrote ...\hd`,
-   the game folder has a new `hd` folder (about 430 MB). If the game is under
+   It takes a few minutes, will display one error at first, then eventually will print one line per image. When it ends with `wrote ...\hd`,
+   the Insaniquarium Deluxe game folder will have a new `hd` folder (about 430 MB). If the game is under
    `Program Files`, run the Command Prompt as administrator so the tool can write there.
-5. **Turn the HD art on**: start the game with `--hd` at the end:
+5. **Turn the HD art on**: Start the game with `--hd` at the end:
    ```
    target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe" --hd
    ```
    Or double-click `Play HD.bat` in this folder (first edit its `GAME=` line if your game
    isn't in an `Insaniquarium Deluxe` folder next to this one). For a desktop shortcut, add
-   the game path and `--hd` to the end of its **Target**.
+   the game path and `--hd` to the end of its **Target**. It can also be toggled via the debug menu.
 
 Without `--hd` the game always uses the original art, whether or not the `hd` folder exists.
 To remove the HD art, delete the `hd` folder.
