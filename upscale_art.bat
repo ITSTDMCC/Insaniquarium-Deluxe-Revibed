@@ -3,7 +3,7 @@ setlocal
 rem Upscales the game's art with Real-ESRGAN into "<game>\hd". Double-click to run.
 rem Asks for each folder; press Enter to keep the default shown in brackets.
 
-call :ask GAME   "Insaniquarium Deluxe game folder"          "%~dp0Insaniquarium Deluxe" "properties\resources.xml"
+call :ask GAME   "Insaniquarium Deluxe game folder"          "%~dp0..\Insaniquarium Deluxe" "properties\resources.xml"
 call :ask ESRGAN "Real-ESRGAN folder (holds the exe)"        "%~dp0upscale\realesrgan"   "realesrgan-ncnn-vulkan.exe"
 
 echo.
