@@ -38,9 +38,9 @@ This gets the game running with its original art.
 2. **Install the Visual Studio C++ Build Tools** (Rust needs them on Windows): download them
    from https://visualstudio.microsoft.com/visual-cpp-build-tools/, run the installer, tick
    **"Desktop development with C++"** and install.
-3. **Install Rust**: download `[rustup-init.exe](https://rust-lang.org/tools/install/)` from https://rust-lang.org/tools/install/, run it and accept the default options.
-4. **Get this repository**: on its GitHub page, click **Code > Download ZIP** and unzip it
-   (or `git clone` it). The folder you get is the one these steps call "this folder".
+3. **Install Rust**: download 'rustup-init.exe' from https://rust-lang.org/tools/install/, run it and accept the default options.
+4. **Get this repository**: on its GitHub page, pull down the latest release and unzip it
+   (or `git clone` it). The unzpiied folder you get is the one these steps refer to as "this folder".
 5. **Build the game**: open a new Command Prompt in this folder and run:
    ```
    cargo build --release
