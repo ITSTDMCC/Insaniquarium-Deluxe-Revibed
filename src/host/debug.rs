@@ -35,6 +35,8 @@ pub struct DebugMenu {
     pub auto_collect: bool,
     /// How long the hold-to-collect notice stays up (ms).
     toast_ms: f64,
+    /// Store rerolls so far: each restocks as if it were that many days later.
+    rerolls: i32,
     /// A scripted Escape press for `input` (test hook).
     pub scripted_escape: bool,
     /// Smoothed frame time (ms).
@@ -66,7 +68,7 @@ pub struct Toast;
 
 /// Keys the menu takes from the game while it is open.
 pub fn captures(menu: &DebugMenu, key: KeyCode) -> bool {
-    key == KeyCode::F1 || (menu.open && matches!(key, KeyCode::Digit1 | KeyCode::Digit2 | KeyCode::Digit3 | KeyCode::Digit4 | KeyCode::Digit5 | KeyCode::Digit6 | KeyCode::Digit7 | KeyCode::Digit8 | KeyCode::Digit9))
+    key == KeyCode::F1 || (menu.open && matches!(key, KeyCode::Digit1 | KeyCode::Digit2 | KeyCode::Digit3 | KeyCode::Digit4 | KeyCode::Digit5 | KeyCode::Digit6 | KeyCode::Digit7 | KeyCode::Digit8 | KeyCode::Digit9 | KeyCode::Digit0))
 }
 
 pub fn setup(mut commands: Commands, mut menu: ResMut<DebugMenu>) {
@@ -152,6 +154,7 @@ pub fn keys(
             "8" => Some(KeyCode::Digit8),
             "9" => Some(KeyCode::Digit9),
             "Esc" => Some(KeyCode::Escape),
+            "0" => Some(KeyCode::Digit0),
             _ => None,
         })
         .collect();
@@ -246,6 +249,19 @@ pub fn keys(
         menu.auto_collect = !menu.auto_collect;
         menu.message = format!("Hold to collect money: {}.", if menu.auto_collect { "on" } else { "off" });
         menu.toast_ms = 2000.0;
+    }
+    if menu.open && pressed(KeyCode::Digit0) {
+        let app = g.globals.DAT_005eb6a4;
+        let store = if app == NULL { NULL } else { g.wfa(app).offset_0xe4 };
+        menu.message = if store != NULL {
+            // `RestockShelves(dayOffset)` with a new offset: the stock another day would have
+            // (it also starts a new stock day, so nothing shows as sold).
+            menu.rerolls += 1;
+            crate::game::store::FUN_0052fea0(&mut g, store, menu.rerolls);
+            format!("Store restocked (reroll {}).", menu.rerolls)
+        } else {
+            "Open the virtual tank's store first.".into()
+        };
     }
     if menu.message != before {
         info!("debug menu: {}", menu.message);
@@ -343,6 +359,7 @@ pub fn overlay(
          7  Bring in an alien: {}\n\
          8  Choose the alien\n\
          9  Hold the left button to collect money (or middle click): {}\n\
+         0  Reroll the virtual tank store's items (in the store)\n\
          \n\
          {}",
         menu.frame_ms,

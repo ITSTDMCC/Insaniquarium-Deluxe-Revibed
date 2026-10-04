@@ -130,6 +130,7 @@ the game):
 | 7 | Bring the chosen alien into the tank |
 | 8 | Choose the alien (Sylvester, Balrog, Gus, Destructor, Ulysses, Psychosquid, Bilaterus) |
 | 9 | Hold to collect: while on, holding the left button collects any money under the cursor |
+| 0 | Reroll the virtual tank store's items (while the store is open) |
 
 The middle mouse button also turns hold to collect on or off, with the menu closed too (a
 notice shows the new state). **Escape** in a tank opens the pause menu, like the Menu button.
