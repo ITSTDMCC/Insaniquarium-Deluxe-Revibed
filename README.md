@@ -1,11 +1,32 @@
-# Insaniquarium Deluxe — Rust/Bevy port
+# Insaniquarium Deluxe Revibed — A Rust/Bevy enhancement port
 
-A Claude powered port of Insaniquarium Deluxe to Rust on the Bevy
-engine, translated from the decompiled game. Every game function is either ported (with a
-`/// port: <address> <name>` tag) or listed as replaced; `port/manifest.csv` tracks all 9,143.
+A Claude Opus 5.5 powered port of Popcap's Insaniquarium Deluxe to Rust on the Bevy
+engine. This was made as a personal project for self-education purposes. 
 
-This repository contains no game data. You need your own copy of Insaniquarium Deluxe
-(the Steam version works).
+This repository contains no game data. You are required to provide your own copy of Insaniquarium Deluxe. Please support the official release!
+(the Steam version works). (Seriously, it's $5, or $1 on sale)
+
+https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
+
+## Software Requirements
+
+- Windows 10/11 x64
+- Rust stable (1.85+, MSVC toolchain) via [rustup](https://rustup.rs), plus Visual Studio
+  C++ Build Tools
+- A GPU with Vulkan, DirectX 12 or OpenGL support
+- Your own copy of Insaniquarium Deluxe
+
+## Hardware Requirements
+
+**Running with Original art**
+- Any graphics card with DirectX 12 or Vulkan support
+- 4 GB RAM
+
+**Running with HD art** 
+- 8 GB RAM (the game uses about 2.2 GB)
+- A 4-core CPU or better
+- About 450 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
+- A Vulkan-capable graphics card, to run the upscaler once
 
 ## Build and run
 
@@ -13,7 +34,7 @@ This repository contains no game data. You need your own copy of Insaniquarium D
 cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
 ```
 
-Without a path the port looks for `..\Insaniquarium Deluxe` next to this folder. Add `--hd` to
+Without a specified path, the port looks for `..\Insaniquarium Deluxe` next to this folder. Add `--hd` to
 use the optional HD art (see "HD art" below); without it the game uses its original art.
 The first build takes a few minutes. The built game is `target\release\winfish_rs.exe`;
 the libopenmpt DLLs (music) are copied next to it by `build.rs` and must stay beside it.
@@ -33,30 +54,10 @@ The agent clones the repo, runs `cargo build --release`, checks the game loads w
 test run (`WINFISH_NO_SAVE=1`, `WINFISH_SNAPSHOT=300:title.png` should save a picture of the
 main menu), then launches `target\release\winfish_rs.exe` for you to play.
 
-## Software Requirements
-
-- Windows 10/11 x64
-- Rust stable (1.85+, MSVC toolchain) via [rustup](https://rustup.rs), plus Visual Studio
-  C++ Build Tools
-- A GPU with Vulkan, DirectX 12 or OpenGL support
-- Your own copy of Insaniquarium Deluxe
-
-## Hardware Requirements
-
-**Original art**
-- Any graphics card with DirectX 12 or Vulkan support
-- 4 GB RAM
-
-**With HD art**
-- 8 GB RAM (the game uses about 2.2 GB)
-- A 4-core CPU or better
-- About 450 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
-- A Vulkan-capable graphics card, to run the upscaler once
-
-## HD art (optional)
+## HD art (optional, Powered by https://github.com/xinntao/real-esrgan)
 
 The game uses its original art unless you start it with `--hd`. HD art is made once, on your
-PC, from your own copy of the game: every image and font is enlarged 4x by Real-ESRGAN (an
+PC, from your own copy of the game. Every image and font is enlarged 4x by Real-ESRGAN (an
 AI upscaler) and saved in a new `hd` folder inside the game folder. Your original game files
 are never changed, and no game art is stored in this repository.
 
