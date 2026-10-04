@@ -15,6 +15,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
   C++ Build Tools
 - A GPU with Vulkan, DirectX 12 or OpenGL support
 - Your own copy of Insaniquarium Deluxe
+- Python 3 (Optional, if you want to use the "HD Art"). 
 
 ## Hardware Requirements
 
