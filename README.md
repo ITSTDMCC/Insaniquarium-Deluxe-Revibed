@@ -168,8 +168,3 @@ script, run again (with `WINFISH_FIXED_STEPS=1` the same script gives the same g
 - Links (registration page, Options web link) are logged, not opened in a browser.
 - Update checks always fail (no network access).
 - Registration codes are not verified (the Steam version starts registered).
-
-## Tests
-
-`cargo test` runs unit tests and the parity tests, which check the manifest and port tags
-against the reference database (`..\gamedb_index\winfish.sqlite`, not in this repository).
