@@ -45,7 +45,7 @@ This gets the game running with its original art.
    cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
    ```
    Without a specified path, the port looks for ..\Insaniquarium Deluxe next to this folder
-   The first build takes a few minutes. The game is built as `target\release\winfish_rs.exe`.
+   The first build takes a few minutes, the game will launch upon completion. The game is built as `target\release\winfish_rs.exe`.
    The libopenmpt DLLs (music) are copied next to it and must stay beside it.
 7. **Play**: Start the game using winfish_rs.exe:
 
