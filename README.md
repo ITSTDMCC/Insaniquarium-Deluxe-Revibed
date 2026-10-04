@@ -35,7 +35,7 @@ This gets the game running with its original art.
 
 1. **Install the game** (for example from Steam) and note its folder, e.g.
    `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`. I would recommend making a separate copy of the game in a new folder where it will reside next to the revibed version.
-2. **Install the Visual Studio C++ Build Tools** (Rust needs them on Windows): Download them
+2. **Install the Visual Studio C++ Build Tools** (Rust dependency on Windows): Download them
    from https://visualstudio.microsoft.com/visual-cpp-build-tools/, run the installer, tick
    **"Desktop development with C++"** and install.
 3. **Install Rust**: Download 'rustup-init.exe' from https://rust-lang.org/tools/install/, run it and accept the default options.
@@ -48,7 +48,7 @@ This gets the game running with its original art.
    The first build takes a few minutes, the game will launch upon completion. The game is built as `target\release\winfish_rs.exe`.
    The libopenmpt DLLs (music) are copied next to it and must stay beside it.
 7. **Play**: Start the game using winfish_rs.exe:
-
+   This can be found under Insaniquarium-Deluxe-Revibed\target\release.
    You can additionally make a desktop shortcut to `winfish_rs.exe` and
    add the game path (in quotes) to the end of its **Target**. If this folder sits next to
    the game folder and the game folder is named `Insaniquarium Deluxe`, no path is needed.
@@ -68,16 +68,10 @@ Do the steps above first. Then:
    download `realesrgan-ncnn-vulkan-20220424-windows.zip` (about 45 MB) and unzip it to a
    folder of your choice, e.g. `C:\Tools\realesrgan`. That folder should contain
    `realesrgan-ncnn-vulkan.exe` and a `models` folder.
-4. **Make the HD art.** Go to the root of your Insaniquarium-Deluxe-Revibed port folder and run upscale_art.bat:
- 
-   Answer the prompts, first entering the path to the root of your Insaniquarium Deluxe folder, then the root of Real-ESRGAN. It takes a few minutes, will display one error at first, then eventually will print one line per image. When it ends with `wrote ...\hd`,
-   the Insaniquarium Deluxe game folder will have a new `hd` folder (about 430 MB). If the game is under
+4. **Make the HD art.** Go to the root of your Insaniquarium-Deluxe-Revibed port folder and run upscale_art.bat file:
+   Answer the prompts, first entering the path to the root of your Insaniquarium Deluxe folder, then the root of Real-ESRGAN. It takes a few minutes, will display one error at first, then eventually will print one line per image. When it ends with `wrote ...\hd`. Upon completion, the Insaniquarium Deluxe game folder will have a new `hd` folder (about 430 MB). If the game is under
    `Program Files`, run the Command Prompt as administrator so the tool can write there.
-5. **Turn the HD art on**: Start the game with `--hd` at the end:
-   ```
-   target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe" --hd
-   ```
-   Or double-click `Play HD.bat` in this folder (first edit its `GAME=` line if your game
+5. **Turn the HD art on**: Start the game with `Play HD.bat` in the Insaniquarium-Deluxe-Revibed port folder (first edit its `GAME=` line if your game
    isn't in an `Insaniquarium Deluxe` folder next to this one). For a desktop shortcut, add
    the game path and `--hd` to the end of its **Target**. It can also be toggled via the debug menu.
 
