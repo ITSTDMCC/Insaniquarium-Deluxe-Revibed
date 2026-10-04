@@ -70,14 +70,14 @@ Do the steps above first. Then:
    `realesrgan-ncnn-vulkan.exe` and a `models` folder.
 4. **Make the HD art.** In a Command Prompt in this folder, run (with your own paths):
    ```
-   python tools\upscale_art.py --game "C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe" --esrgan "C:\path\to\realesrgan"
+   python tools\upscale_art.py --game "C:\path\to\Insaniquarium Deluxe" --esrgan "C:\path\to\realesrgan"
    ```
    It takes a few minutes and prints one line per image. When it ends with `wrote ...\hd`,
    the game folder has a new `hd` folder (about 430 MB). If the game is under
    `Program Files`, run the Command Prompt as administrator so the tool can write there.
 5. **Turn the HD art on**: start the game with `--hd` at the end:
    ```
-   target\release\winfish_rs.exe "C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe" --hd
+   target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe" --hd
    ```
    Or double-click `Play HD.bat` in this folder (first edit its `GAME=` line if your game
    isn't in an `Insaniquarium Deluxe` folder next to this one). For a desktop shortcut, add
