@@ -29,7 +29,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 - About 450 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
 - A Vulkan-capable graphics card, to run the upscaler once
 
-### Step by step (from a fresh Windows install)
+## Step by step (from a fresh Windows install)
 
 1. **Install the game** (for example from Steam) and note its folder, e.g.
    `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`.
