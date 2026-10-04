@@ -1,6 +1,6 @@
 # Insaniquarium Deluxe — Rust/Bevy port
 
-A function-by-function port of `WinFish.exe` (Insaniquarium Deluxe) to Rust on the Bevy
+A Claude powered port of Insaniquarium Deluxe to Rust on the Bevy
 engine, translated from the decompiled game. Every game function is either ported (with a
 `/// port: <address> <name>` tag) or listed as replaced; `port/manifest.csv` tracks all 9,143.
 
