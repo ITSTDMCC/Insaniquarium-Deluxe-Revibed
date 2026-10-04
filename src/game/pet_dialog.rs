@@ -135,15 +135,23 @@ pub fn FUN_005329f0(g: &mut G, this: Ptr, param_1: i32, param_2: i32) -> i32 {
 }
 
 /// port: 00530360 Sexy::PetDialog::vfunction52
-/// `MouseLeave()`: nothing lit.
+/// `MouseLeave()`: nothing lit. FoodDialog's vtable shares this function (its +0x158 lit and
+/// +0x15c pressed words sit where PetDialog's do), so it serves both dialogs.
 pub fn vfunction52(g: &mut G, this: Ptr) {
     crate::sexy::trivial::vfunction2__00486bf0();
-    let d = g.pet_dialog(this);
-    if d.offset_0x4 == -1 && d.offset_0x0 == -1 {
+    let (lit, pressed) = match &mut g.widget(this).ext {
+        WExt::Dialog(e) => match &mut e.sub {
+            DlgSub::Money(_, MoneySub::Pet(d)) => (&mut d.offset_0x0, &mut d.offset_0x4),
+            DlgSub::Money(_, MoneySub::Food(d)) => (&mut d.offset_0x0, &mut d.offset_0x4),
+            s => panic!("{this} is not a PetDialog or FoodDialog: {s:?}"),
+        },
+        e => panic!("{this} is not a Dialog: {e:?}"),
+    };
+    if *pressed == -1 && *lit == -1 {
         return;
     }
-    d.offset_0x4 = -1;
-    d.offset_0x0 = -1;
+    *pressed = -1;
+    *lit = -1;
     vcall!(g, this, w.vfunction18);
 }
 

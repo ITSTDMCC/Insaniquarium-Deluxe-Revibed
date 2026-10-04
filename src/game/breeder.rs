@@ -277,7 +277,12 @@ pub fn vfunction81(g: &mut G, this: Ptr, sync: &mut crate::sexy::data_sync::Data
 pub fn vfunction73(g: &mut G, this: Ptr) -> i32 {
     let r = crate::game::game_object::vfunction73(g, this);
     if 0 < r {
-        match g.breeder(this).offset_0x4c {
+        // BallFish's vtable shares this function; its +0x1a0 is the Fish size stage.
+        let stage = match &g.go_ext(this).sub {
+            GoSub::Breeder(d) => d.offset_0x4c,
+            _ => g.fish(this).offset_0x4c,
+        };
+        match stage {
             1 => return r * 2,
             2 => return r * 3,
             _ => {}
@@ -836,7 +841,7 @@ pub fn vfunction78(g: &mut G, this: Ptr, param_1: i32) {
     let board = board_of(g, this);
     let high = g.go(this).offset_0x7c;
     crate::game::board_level::FUN_005384c0(g, board, high);
-    match g.food(food).offset_0x34 {
+    match crate::game::fish::eaten_word(g, food, 0x188) {
         0 => {
             g.go(this).offset_0x14 += 500;
             if 800 < g.go(this).offset_0x14 {

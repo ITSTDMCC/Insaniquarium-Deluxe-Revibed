@@ -1438,6 +1438,24 @@ pub const DAT_005df4f8: [i32; 12] = [75, 20, 40, 255, 20, 75, 160, 150, 245, 180
 pub const DAT_005df528: [i32; 12] = [75, 70, 40, 65, 75, 70, 65, 80, 170, 170, 15, 75];
 pub const DAT_005df558: [i32; 12] = [75, 110, 40, 0, 120, 70, 25, 175, 0, 155, 245, 75];
 
+/// The int `Eat` reads at object offset 0x194 or 0x188 of what it ate. For food that is the
+/// kind (+0x194) and the grade (+0x188). A fish with a taste for prey (`TryEatPrey`) eats
+/// creatures, and the original reads the same offsets from them: in a Fish or a Breeder,
+/// +0x194 is the leftmost x and +0x188 the low word of the facing speed (a double).
+pub(crate) fn eaten_word(g: &mut G, p: Ptr, offset: u32) -> i32 {
+    use crate::sexy::object::GoSub;
+    let low = |v: f64| v.to_bits() as u32 as i32;
+    match (&g.go_ext(p).sub, offset) {
+        (GoSub::Food(d), 0x194) => d.offset_0x40,
+        (GoSub::Food(d), _) => d.offset_0x34,
+        (GoSub::Fish(d) | GoSub::FishTypePet(d, _) | GoSub::BiFish(d, _), 0x194) => d.field_0x40,
+        (GoSub::Fish(d) | GoSub::FishTypePet(d, _) | GoSub::BiFish(d, _), _) => low(d.offset_0x34),
+        (GoSub::Breeder(d), 0x194) => d.field_0x40,
+        (GoSub::Breeder(d), _) => low(d.offset_0x34),
+        (sub, _) => panic!("{p}: Eat of an unexpected creature: {sub:?}"),
+    }
+}
+
 /// port: 004f1ba0 Sexy::Fish::vfunction78
 /// `Eat(Food*)`: the eat sound; fed (hunger by food grade, capped); food counts toward
 /// growing (by grade, more outside the virtual tank). A star potion makes a small-to-large
@@ -1452,7 +1470,7 @@ pub fn vfunction78(g: &mut G, this: Ptr, param_1: i32) {
     let board = g.wfa(app).offset_0x4;
     let high = g.go(this).offset_0x7c;
     crate::game::board_level::FUN_005384c0(g, board, high);
-    let star = g.food(food).offset_0x40 == 2;
+    let star = eaten_word(g, food, 0x194) == 2;
     crate::game::game_object::FUN_004d6a30(g, this, star);
     let mode = g.wfa(app).offset_0x150;
     let mut count = true;
@@ -1491,7 +1509,7 @@ pub fn vfunction78(g: &mut G, this: Ptr, param_1: i32) {
             return;
         }
     } else {
-        match g.food(food).offset_0x34 {
+        match eaten_word(g, food, 0x188) {
             0 => {
                 let go = g.go(this);
                 go.offset_0x14 += 500;
