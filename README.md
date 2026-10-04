@@ -127,6 +127,8 @@ the game):
 | 4 | HD art on / off (needs the `hd` folder) |
 | 5 | Next scaling filter (bicubic, nearest, bilinear, xBR) |
 | 6 | Game speed: 1x, 2x, 4x, paused |
+| 7 | Bring the chosen alien into the tank |
+| 8 | Choose the alien (Sylvester, Balrog, Gus, Destructor, Ulysses, Psychosquid, Bilaterus) |
 
 ## Layout
 

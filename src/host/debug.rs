@@ -8,6 +8,18 @@ use crate::sexy::prelude::*;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
+/// The aliens the menu can bring in: (kind, name). Kinds as `Board::AddAlien` takes them.
+pub const ALIENS: [(i32, &str); 8] = [
+    (1, "Sylvester (kind 1)"),
+    (2, "Sylvester (kind 2)"),
+    (3, "Balrog"),
+    (4, "Gus"),
+    (5, "Destructor"),
+    (6, "Ulysses"),
+    (7, "Psychosquid"),
+    (8, "Bilaterus"),
+];
+
 /// The game speeds the menu cycles through (0 = paused).
 pub const SPEEDS: [f64; 4] = [1.0, 2.0, 4.0, 0.0];
 
@@ -16,6 +28,8 @@ pub struct DebugMenu {
     pub open: bool,
     /// Index into `SPEEDS`.
     pub speed: usize,
+    /// Index into `ALIENS`: the alien key 7 brings in.
+    pub alien: usize,
     /// Smoothed frame time (ms).
     frame_ms: f64,
     /// The last action's result, shown under the list.
@@ -38,7 +52,7 @@ pub struct DebugText;
 
 /// Keys the menu takes from the game while it is open.
 pub fn captures(menu: &DebugMenu, key: KeyCode) -> bool {
-    key == KeyCode::F1 || (menu.open && matches!(key, KeyCode::Digit1 | KeyCode::Digit2 | KeyCode::Digit3 | KeyCode::Digit4 | KeyCode::Digit5 | KeyCode::Digit6))
+    key == KeyCode::F1 || (menu.open && matches!(key, KeyCode::Digit1 | KeyCode::Digit2 | KeyCode::Digit3 | KeyCode::Digit4 | KeyCode::Digit5 | KeyCode::Digit6 | KeyCode::Digit7 | KeyCode::Digit8))
 }
 
 pub fn setup(mut commands: Commands, mut menu: ResMut<DebugMenu>) {
@@ -96,6 +110,8 @@ pub fn keys(
             "4" => Some(KeyCode::Digit4),
             "5" => Some(KeyCode::Digit5),
             "6" => Some(KeyCode::Digit6),
+            "7" => Some(KeyCode::Digit7),
+            "8" => Some(KeyCode::Digit8),
             _ => None,
         })
         .collect();
@@ -167,6 +183,23 @@ pub fn keys(
             s => format!("Game speed {s}x."),
         };
     }
+    if pressed(KeyCode::Digit7) {
+        let board = tank(&mut g);
+        let (kind, name) = ALIENS[menu.alien];
+        menu.message = if board != NULL {
+            // As the game's own debug mode does (`Board::KeyChar`): the board's alien kind,
+            // then `AddAlienAnywhere(kind, announce)`.
+            g.board(board).field_0x230 = kind;
+            crate::game::board_level::FUN_005475b0(&mut g, board, kind, true);
+            format!("{name} is coming!")
+        } else {
+            "Aliens can only be brought into a tank.".into()
+        };
+    }
+    if pressed(KeyCode::Digit8) {
+        menu.alien = (menu.alien + 1) % ALIENS.len();
+        menu.message = format!("Next alien: {}.", ALIENS[menu.alien].1);
+    }
     if menu.message != before {
         info!("debug menu: {}", menu.message);
     }
@@ -230,9 +263,11 @@ pub fn overlay(
          4  HD art on / off\n\
          5  Next scaling filter\n\
          6  Game speed: 1x, 2x, 4x, paused\n\
+         7  Bring in an alien: {}\n\
+         8  Choose the alien\n\
          \n\
          {}",
-        menu.frame_ms, menu.message
+        menu.frame_ms, ALIENS[menu.alien].1, menu.message
     );
     for mut t in &mut text {
         if t.0 != s {
