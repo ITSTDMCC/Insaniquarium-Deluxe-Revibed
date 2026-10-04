@@ -39,19 +39,16 @@ This gets the game running with its original art.
    from https://visualstudio.microsoft.com/visual-cpp-build-tools/, run the installer, tick
    **"Desktop development with C++"** and install.
 3. **Install Rust**: Download 'rustup-init.exe' from https://rust-lang.org/tools/install/, run it and accept the default options.
-4. **Get this repository**: Pull down the latest release and unzip it
-   (or `git clone` it). The unzipped folder you get is the one these steps refer to as "this folder".
-5. **Build the game**: open a new Command Prompt in this folder and run:
+4. **Get this repository**: Pull down the latest release and unzip it. Place the unzipped folder in your desired location, preferably sitting next to the original game.
+5. **Build the game**: open a new Command Prompt, navigate to the unzipped folder and run:
    ```
    cargo build --release
    ```
    The first build takes a few minutes. The game is built as `target\release\winfish_rs.exe`.
    The libopenmpt DLLs (music) are copied next to it and must stay beside it.
-6. **Play**: start the game with the path to your game folder:
-   ```
-   target\release\winfish_rs.exe "C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe"
-   ```
-   To launch it later with a double-click, make a desktop shortcut to `winfish_rs.exe` and
+6. **Play**: Start the game using winfish_rs.exe:
+
+   You can additionally make a desktop shortcut to `winfish_rs.exe` and
    add the game path (in quotes) to the end of its **Target**. If this folder sits next to
    the game folder and the game folder is named `Insaniquarium Deluxe`, no path is needed.
 
