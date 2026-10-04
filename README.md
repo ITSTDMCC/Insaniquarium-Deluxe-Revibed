@@ -23,6 +23,12 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 - Any graphics card with DirectX 12 or Vulkan support
 - 4 GB RAM
 
+**Running with HD art** 
+- 8 GB RAM (the game uses about 2.2 GB)
+- A 4-core CPU or better
+- About 475 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
+- A Vulkan-capable graphics card, to run the upscaler once
+
 ## New Features/QOL improvements:
 - Middle click toggles "hold to collect": While it's on, holding the left mouse button collects any money under the cursor. A notice shows ON or OFF. The middle button no longer acts as a click in the game. (my index finger hurts sometimes from the clicking. Off by default)
 
@@ -32,11 +38,7 @@ Scales with the window: The game fills the window at any size and keeps its orig
 - Optional HD art (off by default):
 Upscales every image and font 4× from your own copy of the game, powered by Real-ESRGAN. The game then draws at 4× resolution with that art, at 60 fps. HD art loads in the background as screens load, so there's no extra startup time. Delete the hd folder, or set WINFISH_NO_HD=1, to go back to the original art.
 
-**Running with HD art** 
-- 8 GB RAM (the game uses about 2.2 GB)
-- A 4-core CPU or better
-- About 475 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
-- A Vulkan-capable graphics card, to run the upscaler once
+
 
 ## Step by step (from a fresh Windows install)
 
