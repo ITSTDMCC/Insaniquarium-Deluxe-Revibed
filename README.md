@@ -44,7 +44,7 @@ This gets the game running with its original art.
    ```
    cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
    ```
-   Without a specified path, the port looks for ..\Insaniquarium Deluxe next to this folder
+   Without a specified path, the port looks for ..\Insaniquarium Deluxe next to this folder.
    The first build takes a few minutes, the game will launch upon completion. The game is built as `target\release\winfish_rs.exe`.
    The libopenmpt DLLs (music) are copied next to it and must stay beside it.
 7. **Play**: Start the game using winfish_rs.exe:
@@ -68,7 +68,7 @@ Do the steps above first. Then:
    download `realesrgan-ncnn-vulkan-20220424-windows.zip` (about 45 MB) and unzip it to a
    folder of your choice, e.g. `C:\Tools\realesrgan`. That folder should contain
    `realesrgan-ncnn-vulkan.exe` and a `models` folder.
-4. **Make the HD art.** In a Command Prompt in this folder, run (with your own paths):
+4. **Make the HD art.** Open command prompt and navigate to this unzipped folder, run (with your own paths):
    ```
    python tools\upscale_art.py --game "C:\path\to\Insaniquarium Deluxe" --esrgan "C:\path\to\realesrgan"
    ```
