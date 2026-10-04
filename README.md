@@ -35,12 +35,12 @@ This gets the game running with its original art.
 
 1. **Install the game** (for example from Steam) and note its folder, e.g.
    `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`. I would recommend making a separate copy of the game in a new folder where it will reside next to the revibed version.
-2. **Install the Visual Studio C++ Build Tools** (Rust needs them on Windows): download them
+2. **Install the Visual Studio C++ Build Tools** (Rust needs them on Windows): Download them
    from https://visualstudio.microsoft.com/visual-cpp-build-tools/, run the installer, tick
    **"Desktop development with C++"** and install.
-3. **Install Rust**: download 'rustup-init.exe' from https://rust-lang.org/tools/install/, run it and accept the default options.
-4. **Get this repository**: on its GitHub page, pull down the latest release and unzip it
-   (or `git clone` it). The unzpiied folder you get is the one these steps refer to as "this folder".
+3. **Install Rust**: Download 'rustup-init.exe' from https://rust-lang.org/tools/install/, run it and accept the default options.
+4. **Get this repository**: Pull down the latest release and unzip it
+   (or `git clone` it). The unzipped folder you get is the one these steps refer to as "this folder".
 5. **Build the game**: open a new Command Prompt in this folder and run:
    ```
    cargo build --release
@@ -54,10 +54,6 @@ This gets the game running with its original art.
    To launch it later with a double-click, make a desktop shortcut to `winfish_rs.exe` and
    add the game path (in quotes) to the end of its **Target**. If this folder sits next to
    the game folder and the game folder is named `Insaniquarium Deluxe`, no path is needed.
-
-That's it: the game runs with its original art. Profiles, saves and high scores are written
-into the game folder's `userdata`, like the original. Point the port at a copy of the game
-folder if you want to keep the original untouched.
 
 ## Additional steps if using the HD Art
 
@@ -90,9 +86,7 @@ Do the steps above first. Then:
    the game path and `--hd` to the end of its **Target**.
 
 Without `--hd` the game always uses the original art, whether or not the `hd` folder exists.
-To remove the HD art, delete the `hd` folder. Adding `--model realesrgan-x4plus` to step 4
-(the general model) gives a softer result that stays closer to the original painting than the
-default cartoon model.
+To remove the HD art, delete the `hd` folder.
 
 ## Building with an AI agent
 
@@ -104,14 +98,14 @@ prompts.
 
 > Clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed and read the README. The
 > game files are at `C:\path\to\Insaniquarium Deluxe`. Follow "Step by step (from a fresh
-> Windows install)" to build the game, but don't launch it.
+> Windows install)" to build the game.
 
 **With HD art:**
 
 > Clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed and read the README. The
 > game files are at `C:\path\to\Insaniquarium Deluxe`. Follow "Step by step (from a fresh
 > Windows install)" and then "Additional steps if using the HD Art" to build the game and
-> make the HD art, but don't launch it.
+> make the HD art.
 
 When the agent is done, start the game yourself:
 ```
