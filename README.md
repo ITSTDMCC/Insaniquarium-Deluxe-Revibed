@@ -1,7 +1,7 @@
 # Insaniquarium Deluxe Revibed — A Rust/Bevy enhancement port
 
 A Claude Opus 5.5 powered port of Popcap's Insaniquarium Deluxe to Rust on the Bevy
-engine. This was made as a personal project for self-education purposes. 
+engine. This was made as a personal project for self-education purposes. **As this was built primarily by AI, please run all code at your own risk**. 
 
 This repository contains no game data. You are required to provide your own copy of Insaniquarium Deluxe. Please support the official release!
 (the Steam version works). (Seriously, it's $5, or $1 on sale)
