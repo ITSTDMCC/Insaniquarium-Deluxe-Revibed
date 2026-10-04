@@ -24,11 +24,12 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 - 4 GB RAM
 
 ## New Features/QOL improvements:
-Middle click toggles "hold to collect": While it's on, holding the left mouse button collects any money under the cursor. A notice shows ON or OFF. The middle button no longer acts as a click in the game. (my index finger hurts sometimes from the clicking. Off by default)
-Debug menu (experimental): press F1. It shows the frame rate, game updates per second, window size, HD art status, scaling filter, game speed, money and shells. While it's open:
+- Middle click toggles "hold to collect": While it's on, holding the left mouse button collects any money under the cursor. A notice shows ON or OFF. The middle button no longer acts as a click in the game. (my index finger hurts sometimes from the clicking. Off by default)
+
+- Debug menu (experimental): press F1. It shows the frame rate, game updates per second, window size, HD art status, scaling filter, game speed, money and shells. While it's open:
 Scales with the window: The game fills the window at any size and keeps its original 4:3 aspect ratio (black bars on the sides).
 
-Optional HD art (off by default):
+- Optional HD art (off by default):
 Upscales every image and font 4× from your own copy of the game, powered by Real-ESRGAN. The game then draws at 4× resolution with that art, at 60 fps. HD art loads in the background as screens load, so there's no extra startup time. Delete the hd folder, or set WINFISH_NO_HD=1, to go back to the original art.
 
 **Running with HD art** 
