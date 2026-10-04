@@ -9,6 +9,7 @@
 //! frame time as the clock.
 
 pub mod audio;
+pub mod debug;
 pub mod music;
 pub mod openmpt;
 pub mod upscale;
@@ -24,8 +25,19 @@ use std::path::PathBuf;
 
 pub const SCREEN_W: u32 = 640;
 pub const SCREEN_H: u32 = 480;
-/// `SexyAppBase::mFrameTime` default (ms per logic update).
+/// `SexyAppBase::mFrameTime` default (ms per logic update), used until the app exists.
 pub const FRAME_TIME_MS: f64 = 10.0;
+
+/// The app's `mFrameTime` (+0x44c): `SexyAppBase::Process` runs one logic update per that
+/// many milliseconds. WinFishApp's constructor sets 28 (about 36 updates a second).
+fn frame_time_ms(g: &mut G) -> f64 {
+    let app = g.globals.DAT_005eb6a4;
+    if app == NULL {
+        return FRAME_TIME_MS;
+    }
+    let t = g.sab(app).field_0x44c;
+    if t > 0 { t as f64 } else { FRAME_TIME_MS }
+}
 
 /// Where the game's install lives (images/, data/, properties/, sounds/).
 #[derive(Resource, Clone)]
@@ -48,6 +60,13 @@ pub struct HostState {
     pub fixed_updates: u64,
     /// The screen mode last given to the window (`mIsWindowed`), once the app exists.
     pub applied_windowed: Option<bool>,
+    /// The saved window size and position were given to the window (once, after boot).
+    pub window_restored: bool,
+    /// The window's last size and position, and when they last changed (saved once settled).
+    pub window_seen: Option<(u32, u32, i32, i32)>,
+    pub window_changed: Option<std::time::Instant>,
+    /// Game time gained (or lost) against the clock under the debug menu's game speed (ms).
+    pub speed_offset_ms: f64,
 }
 
 pub struct WinFishPlugin {
@@ -64,11 +83,12 @@ impl Plugin for WinFishPlugin {
             .insert_resource(GameDir(self.game_dir.clone()))
             .insert_resource(ClearColor(bevy::color::Color::BLACK))
             .init_resource::<HostState>()
-            .add_systems(Startup, (setup_screen, start_vfs_load))
+            .init_resource::<debug::DebugMenu>()
+            .add_systems(Startup, (setup_screen, start_vfs_load, debug::setup))
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
             .add_plugins(upscale::plugin)
-            .add_systems(Update, (poll_vfs_load, focus, input, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, apply_screen_mode, fit_screen).chain());
+            .add_systems(Update, (poll_vfs_load, close_requested, focus, debug::keys, input, debug::auto_collect, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, restore_window, apply_screen_mode, remember_window, fit_screen, debug::overlay).chain());
     }
 }
 
@@ -93,6 +113,63 @@ fn apply_screen_mode(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows:
     };
     info!("screen mode: {}", if windowed { "windowed" } else { "full screen" });
     host.applied_windowed = Some(windowed);
+}
+
+/// (Port addition) Gives the window the size and position it had when the game last ran
+/// (`PortWindow*` in the saved registry), once, after boot. Full screen is the game's own
+/// saved `ScreenMode`, applied by `apply_screen_mode`.
+fn restore_window(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows: Query<&mut Window>) {
+    if !host.booted || host.window_restored {
+        return;
+    }
+    host.window_restored = true;
+    let read = |g: &mut G, k: &str| crate::sexy::app_host::registry_read_integer(g, k);
+    let Ok(mut window) = windows.single_mut() else { return };
+    if let (Some(w), Some(h)) = (read(&mut g, "PortWindowWidth"), read(&mut g, "PortWindowHeight"))
+        && w >= 320
+        && h >= 240
+    {
+        window.resolution.set_physical_resolution(w as u32, h as u32);
+    }
+    if let (Some(x), Some(y)) = (read(&mut g, "PortWindowX"), read(&mut g, "PortWindowY")) {
+        window.position = bevy::window::WindowPosition::At(IVec2::new(x, y));
+    }
+}
+
+/// (Port addition) Saves the window's size and position (in windowed mode) a second after
+/// they stop changing, so the next launch opens the same way.
+fn remember_window(mut g: ResMut<G>, mut host: ResMut<HostState>, windows: Query<&Window>) {
+    if !host.window_restored {
+        return;
+    }
+    let Ok(window) = windows.single() else { return };
+    if !matches!(window.mode, bevy::window::WindowMode::Windowed) {
+        return;
+    }
+    // (The position is known once the window has been moved; until then it stays automatic.)
+    let (x, y) = match window.position {
+        bevy::window::WindowPosition::At(p) => (p.x, p.y),
+        _ => (i32::MIN, i32::MIN),
+    };
+    let now = (window.physical_width(), window.physical_height(), x, y);
+    if host.window_seen != Some(now) {
+        // The first look is what was restored; only later changes are saved.
+        if host.window_seen.is_some() {
+            host.window_changed = Some(std::time::Instant::now());
+        }
+        host.window_seen = Some(now);
+        return;
+    }
+    if host.window_changed.is_some_and(|t| t.elapsed().as_secs_f32() >= 1.0) {
+        host.window_changed = None;
+        use crate::sexy::app_host::registry_write;
+        registry_write(&mut g, "PortWindowWidth", now.0.to_string());
+        registry_write(&mut g, "PortWindowHeight", now.1.to_string());
+        if now.2 != i32::MIN {
+            registry_write(&mut g, "PortWindowX", now.2.to_string());
+            registry_write(&mut g, "PortWindowY", now.3.to_string());
+        }
+    }
 }
 
 /// Scales the 640x480 picture to the window, keeping its shape (black bars on the long
@@ -167,6 +244,7 @@ fn poll_vfs_load(mut commands: Commands, task: Option<ResMut<VfsTask>>, mut g: R
             Ok(vfs) => {
                 info!("loaded {} game files", vfs.len());
                 g.vfs = vfs;
+                crate::sexy::app_host::registry_load(&mut g);
                 crate::game::boot::FUN_005024f0(&mut g);
                 host.booted = true;
             }
@@ -204,11 +282,16 @@ fn input(
     buttons: Res<ButtonInput<MouseButton>>,
     mut wheel: MessageReader<MouseWheel>,
     mut keys: MessageReader<bevy::input::keyboard::KeyboardInput>,
+    debug_menu: Res<debug::DebugMenu>,
 ) {
     if !host.booted {
         return;
     }
     let wm = crate::game::boot::widget_manager(&mut g);
+    if debug_menu.scripted_escape && debug::running_tank(&mut g) != NULL {
+        let board = debug::running_tank(&mut g);
+        crate::game::board::vfunction3_for_ButtonListener(&mut g, board, 0x7b);
+    }
     if wm == NULL {
         return;
     }
@@ -233,7 +316,8 @@ fn input(
         _ => {}
     }
     if let Some((x, y)) = pos {
-        for (b, clicks) in [(MouseButton::Left, 1), (MouseButton::Right, -1), (MouseButton::Middle, 3)] {
+        // (The middle button toggles hold-to-collect, see `debug::auto_collect`.)
+        for (b, clicks) in [(MouseButton::Left, 1), (MouseButton::Right, -1)] {
             if buttons.just_pressed(b) {
                 crate::sexy::widget_manager::FUN_0046d940(&mut g, wm, x, y, clicks);
             }
@@ -247,6 +331,18 @@ fn input(
     }
     // WM_KEYDOWN / WM_KEYUP with Windows virtual-key codes, WM_CHAR with the typed byte.
     for ev in keys.read() {
+        // F1 and the debug menu's keys are not the game's.
+        if debug::captures(&debug_menu, ev.key_code) {
+            continue;
+        }
+        // (Port addition) Escape in a running tank opens the pause menu, as the Menu button does.
+        if ev.key_code == KeyCode::Escape && debug::running_tank(&mut g) != NULL {
+            if ev.state.is_pressed() {
+                let board = debug::running_tank(&mut g);
+                crate::game::board::vfunction3_for_ButtonListener(&mut g, board, 0x7b);
+            }
+            continue;
+        }
         if let Some(vk) = virtual_key(ev.key_code) {
             if ev.state.is_pressed() {
                 crate::sexy::widget_manager::FUN_0046dc10(&mut g, wm, vk);
@@ -545,7 +641,7 @@ fn virtual_key(k: KeyCode) -> Option<u32> {
 }
 
 /// Fixed 10 ms logic steps, then one redraw of the dirty widgets.
-fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>) {
+fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>, debug_menu: Res<debug::DebugMenu>) {
     if !host.booted {
         return;
     }
@@ -557,7 +653,7 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>) {
     // derives GetTickCount from the update count, so scripted runs are reproducible.
     let fixed = std::env::var("WINFISH_FIXED_STEPS").ok().and_then(|v| v.parse::<u32>().ok());
     if let Some(n) = fixed {
-        g.tick_count = (host.fixed_updates as f64 * FRAME_TIME_MS) as u32;
+        g.tick_count = (host.fixed_updates as f64 * frame_time_ms(&mut g)) as u32;
         crate::game::boot::loading_thread_slice(&mut g);
         for _ in 0..n {
             crate::game::boot::update_frame(&mut g);
@@ -567,17 +663,23 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>) {
         return;
     }
     let started = *host.started.get_or_insert_with(std::time::Instant::now);
-    g.tick_count = started.elapsed().as_millis() as u32;
+    // The debug menu's game speed (1 normally) scales the time the game sees.
+    let speed = debug_menu.speed();
+    let dt = time.delta_secs_f64() * 1000.0;
+    host.speed_offset_ms += dt * (speed - 1.0);
+    g.tick_count = (started.elapsed().as_millis() as f64 + host.speed_offset_ms).max(0.0) as u32;
     crate::game::boot::loading_thread_slice(&mut g);
-    host.accum_ms += time.delta_secs_f64() * 1000.0;
+    host.accum_ms += dt * speed;
     // At most 10 catch-up updates per frame, like the framework's frame skip limit.
+    let max_steps = (10.0 * speed.max(1.0)) as i32;
     let mut steps = 0;
-    while host.accum_ms >= FRAME_TIME_MS && steps < 10 {
+    let frame_ms = frame_time_ms(&mut g);
+    while host.accum_ms >= frame_ms && steps < max_steps {
         crate::game::boot::update_frame(&mut g);
-        host.accum_ms -= FRAME_TIME_MS;
+        host.accum_ms -= frame_ms;
         steps += 1;
     }
-    if steps == 10 {
+    if steps == max_steps {
         host.accum_ms = 0.0;
     }
     crate::game::boot::draw_frame(&mut g);
@@ -586,10 +688,13 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>) {
 /// Writes the files the game saved this frame (`users.dat`, `user%d.dat`, ...) to the
 /// install folder on the I/O task pool, creating folders as needed (the original's
 /// `MkDir` + synchronous write). Systems never wait on the disk.
-fn flush_saves(mut g: ResMut<G>) {
+fn flush_saves(mut g: ResMut<G>, host: Res<HostState>) {
     if g.vfs.dirty.is_empty() && g.vfs.deleted.is_empty() {
         return;
     }
+    // The app has shut down and the host is exiting this frame: the last saves (profile,
+    // registry) are written before the process ends instead of on the task pool.
+    let exiting = host.booted && g.globals.DAT_005e8f28 == NULL;
     let files: Vec<(String, Vec<u8>)> = g.vfs.dirty.drain().collect();
     let deleted: Vec<String> = std::mem::take(&mut g.vfs.deleted);
     // Test hook: WINFISH_NO_SAVE=1 keeps saves in memory only (scripted runs).
@@ -597,22 +702,40 @@ fn flush_saves(mut g: ResMut<G>) {
         return;
     }
     let root = g.vfs.root.clone();
-    bevy::tasks::IoTaskPool::get()
-        .spawn(async move {
-            for rel in deleted {
-                let _ = std::fs::remove_file(root.join(&rel));
+    let write = move || {
+        for rel in deleted {
+            let _ = std::fs::remove_file(root.join(&rel));
+        }
+        for (rel, data) in files {
+            let path = root.join(&rel);
+            if let Some(dir) = path.parent() {
+                let _ = std::fs::create_dir_all(dir);
             }
-            for (rel, data) in files {
-                let path = root.join(&rel);
-                if let Some(dir) = path.parent() {
-                    let _ = std::fs::create_dir_all(dir);
-                }
-                if let Err(e) = std::fs::write(&path, &data) {
-                    bevy::log::error!("could not save {}: {e}", path.display());
-                }
+            if let Err(e) = std::fs::write(&path, &data) {
+                bevy::log::error!("could not save {}: {e}", path.display());
             }
-        })
-        .detach();
+        }
+    };
+    if exiting {
+        write();
+    } else {
+        bevy::tasks::IoTaskPool::get().spawn(async move { write() }).detach();
+    }
+}
+
+/// The window's close button: what the original's `WM_CLOSE` did, `Shutdown()` (which writes
+/// the registry and the profile); `upload_screen` then ends the app. Before the game has
+/// booted the app just exits.
+fn close_requested(mut g: ResMut<G>, host: Res<HostState>, mut events: MessageReader<bevy::window::WindowCloseRequested>, mut exit: MessageWriter<AppExit>) {
+    if events.read().count() == 0 {
+        return;
+    }
+    let app = g.globals.DAT_005eb6a4;
+    if host.booted && app != NULL {
+        crate::sexy::sexy_app_base::vfunction43(&mut g, app);
+    } else {
+        exit.write(AppExit::Success);
+    }
 }
 
 fn upload_screen(

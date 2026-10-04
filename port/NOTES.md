@@ -51,7 +51,8 @@ Never edit `..\Decomp\` or the database.
   image's art is loaded on worker threads when the game allocates the image (`G::alloc` queues
   it) and dropped after the image is freed.
 - Sound: `SoundInstance::Play` etc. become `SoundRequest`s.
-- Time: `_time64` reads `G::now_time64`, set by the host each frame.
+- Time: `_time64` reads `G::now_time64`, set by the host each frame. Logic updates run at the
+  app's `mFrameTime` (+0x44c; WinFishApp sets 28 ms, about 36 a second), as `SexyAppBase::Process`.
 - Music: `BassMusicInterface`'s rules (play, stop, fade in/out per update, whole-percent
   volumes, global volume `ftol(40 * mMusicVolume)`%) are in `src/sexy/music.rs` (`G::music`);
   `src/host/music.rs` renders the MO3 modules with libopenmpt (vendored in
@@ -60,6 +61,10 @@ Never edit `..\Decomp\` or the database.
   the URL, copied to the clipboard); update checks always fail; the registration code check
   (`SexyApp::Validate`, RSA over MD5) is not reproduced and refuses every code (the shipped
   build is registered through partner.xml).
+- Registry: `G::registry`, kept as `<game>/userdata/registry.ini` (loaded before
+  `ReadFromRegistry`, rewritten on change through the save path). The host adds
+  `PortWindowWidth/Height/X/Y` (window size and position). The close button runs `Shutdown()`
+  (as `WM_CLOSE` did), and the last saves are written before exit.
 - Window focus: losing it clears `mActive` and calls `WinFishApp::LostFocus` (pauses a game),
   except in scripted test runs.
 - Assumed FPU precision: 53-bit (MSVC default, software renderer). D3D without FPU_PRESERVE

@@ -19,6 +19,8 @@ fn main() {
                 resolution: (640u32, 480u32).into(),
                 ..default()
             }),
+            // The close button goes through the game's Shutdown (it saves the settings).
+            close_when_requested: false,
             ..default()
         }))
         .add_plugins(winfish_rs::host::WinFishPlugin { game_dir, hd })
