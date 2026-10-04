@@ -22,7 +22,8 @@ the libopenmpt DLLs (music) are copied next to it by `build.rs` and must stay be
 
 Profiles, saves and high scores are written into the game folder's `userdata`, like the
 original. The settings the original kept in the Windows registry (volumes, full screen, and
-so on) go to `userdataegistry.ini`, along with the window's size and position, so the game
+so on) go to `userdata
+egistry.ini`, along with the window's size and position, so the game
 opens the way you left it. Point the port at a copy if you want to keep the original folder untouched.
 
 ## Playing without a screen (scripted runs)
