@@ -129,6 +129,7 @@ the game):
 | 6 | Game speed: 1x, 2x, 4x, paused |
 | 7 | Bring the chosen alien into the tank |
 | 8 | Choose the alien (Sylvester, Balrog, Gus, Destructor, Ulysses, Psychosquid, Bilaterus) |
+| 9 | Hold to collect: while on, holding the left button collects any money under the cursor |
 
 ## Layout
 

@@ -83,7 +83,7 @@ impl Plugin for WinFishPlugin {
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
             .add_plugins(upscale::plugin)
-            .add_systems(Update, (poll_vfs_load, focus, debug::keys, input, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, apply_screen_mode, fit_screen, debug::overlay).chain());
+            .add_systems(Update, (poll_vfs_load, focus, debug::keys, input, debug::auto_collect, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, apply_screen_mode, fit_screen, debug::overlay).chain());
     }
 }
 

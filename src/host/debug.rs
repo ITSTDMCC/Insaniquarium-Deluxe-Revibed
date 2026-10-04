@@ -30,6 +30,8 @@ pub struct DebugMenu {
     pub speed: usize,
     /// Index into `ALIENS`: the alien key 7 brings in.
     pub alien: usize,
+    /// Holding the left button collects the money under the cursor (key 9).
+    pub auto_collect: bool,
     /// Smoothed frame time (ms).
     frame_ms: f64,
     /// Logic updates per second, measured each second from the app's update counter.
@@ -55,7 +57,7 @@ pub struct DebugText;
 
 /// Keys the menu takes from the game while it is open.
 pub fn captures(menu: &DebugMenu, key: KeyCode) -> bool {
-    key == KeyCode::F1 || (menu.open && matches!(key, KeyCode::Digit1 | KeyCode::Digit2 | KeyCode::Digit3 | KeyCode::Digit4 | KeyCode::Digit5 | KeyCode::Digit6 | KeyCode::Digit7 | KeyCode::Digit8))
+    key == KeyCode::F1 || (menu.open && matches!(key, KeyCode::Digit1 | KeyCode::Digit2 | KeyCode::Digit3 | KeyCode::Digit4 | KeyCode::Digit5 | KeyCode::Digit6 | KeyCode::Digit7 | KeyCode::Digit8 | KeyCode::Digit9))
 }
 
 pub fn setup(mut commands: Commands, mut menu: ResMut<DebugMenu>) {
@@ -115,6 +117,7 @@ pub fn keys(
             "6" => Some(KeyCode::Digit6),
             "7" => Some(KeyCode::Digit7),
             "8" => Some(KeyCode::Digit8),
+            "9" => Some(KeyCode::Digit9),
             _ => None,
         })
         .collect();
@@ -203,6 +206,10 @@ pub fn keys(
         menu.alien = (menu.alien + 1) % ALIENS.len();
         menu.message = format!("Next alien: {}.", ALIENS[menu.alien].1);
     }
+    if pressed(KeyCode::Digit9) {
+        menu.auto_collect = !menu.auto_collect;
+        menu.message = format!("Hold to collect money: {}.", if menu.auto_collect { "on" } else { "off" });
+    }
     if menu.message != before {
         info!("debug menu: {}", menu.message);
     }
@@ -286,13 +293,53 @@ pub fn overlay(
          6  Game speed: 1x, 2x, 4x, paused\n\
          7  Bring in an alien: {}\n\
          8  Choose the alien\n\
+         9  Hold the left button to collect money: {}\n\
          \n\
          {}",
-        menu.frame_ms, menu.ups, ALIENS[menu.alien].1, menu.message
+        menu.frame_ms,
+        menu.ups,
+        ALIENS[menu.alien].1,
+        if menu.auto_collect { "on" } else { "off" },
+        menu.message
     );
     for mut t in &mut text {
         if t.0 != s {
             t.0 = s.clone();
+        }
+    }
+}
+
+/// With "hold to collect" on (key 9): while the left button is held in a running tank, every
+/// coin, pearl or other item under the cursor gets the mouse press a click would give it
+/// (`Coin::MouseDown`), so it is collected as if clicked. Test hook:
+/// `WINFISH_DEBUG_HOLD=<y>` holds the button with the cursor sweeping across the tank at y.
+pub fn auto_collect(menu: Res<DebugMenu>, buttons: Res<ButtonInput<MouseButton>>, host: Res<HostState>, mut g: ResMut<G>) {
+    let sweep = std::env::var("WINFISH_DEBUG_HOLD").ok().and_then(|v| v.parse::<i32>().ok());
+    let held = buttons.pressed(MouseButton::Left) || sweep.is_some();
+    if !menu.auto_collect || !held || !host.booted {
+        return;
+    }
+    let cursor = match sweep {
+        Some(y) => Some(((host.frames * 7 % 640) as i32, y)),
+        None => host.last_mouse,
+    };
+    let Some((mx, my)) = cursor else { return };
+    let board = tank(&mut g);
+    if board == NULL || g.wc(board).offset_0x10 == NULL || g.board(board).field_0x8 {
+        return;
+    }
+    let app = g.globals.DAT_005eb6a4;
+    if !g.sab(app).offset_0x32c.is_empty() || !g.sab(app).offset_0x320.is_empty() {
+        return;
+    }
+    let coins = g.board(board).offset_0xc[crate::game::board_level::vec_index(0xa8)].clone();
+    for c in coins {
+        if !g.is_live(c) || g.coin(c).offset_0x44 {
+            continue;
+        }
+        let (x, y, w, h) = (g.wc(c).offset_0x2c, g.wc(c).offset_0x30, g.wc(c).offset_0x34, g.wc(c).offset_0x38);
+        if mx >= x && mx < x + w && my >= y && my < y + h {
+            crate::game::coin::vfunction55(&mut g, c, mx - x, my - y, 1);
         }
     }
 }
