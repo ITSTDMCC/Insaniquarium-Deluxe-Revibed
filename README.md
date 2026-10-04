@@ -35,7 +35,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
    `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`.
 2. **Build the port** as described in "Build and run" below (install Rust from
    https://rustup.rs, then run `cargo build --release` in this folder). Check that the game
-   starts with its original art.
+   starts with its original art. NOTE: If you'd like to play it without the HD art, you're done! Proceed below if you'd like to use the HD Art. 
 3. **Install Python 3** from https://www.python.org/downloads/. In the installer, tick
    **"Add python.exe to PATH"**.
 4. **Install Pillow** (the image library the tool uses). Open a new Command Prompt and run:
