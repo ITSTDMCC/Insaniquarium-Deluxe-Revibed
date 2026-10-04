@@ -37,7 +37,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
    https://rustup.rs, then run `cargo build --release` in this folder). Check that the game
    starts with its original art. NOTE: If you'd like to play it without the HD art, you're done! Proceed below if you'd like to use the HD Art.
 
-###Additional steps for using the HD ART
+### Additional steps for using the HD ART
     
 4. **Install Python 3** from https://www.python.org/downloads/. In the installer, tick
    **"Add python.exe to PATH"**.
