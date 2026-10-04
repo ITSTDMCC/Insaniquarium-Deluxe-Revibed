@@ -11,10 +11,10 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 ## Software Requirements
 
 - Windows 10/11 x64
+- Your own copy of Insaniquarium Deluxe
 - Rust stable (1.85+, MSVC toolchain) via [rustup](https://rustup.rs), plus Visual Studio
   C++ Build Tools
 - A GPU with Vulkan, DirectX 12 or OpenGL support
-- Your own copy of Insaniquarium Deluxe
 - Python 3 (Optional, if you want to use the "HD art"). 
 
 ## Hardware Requirements
