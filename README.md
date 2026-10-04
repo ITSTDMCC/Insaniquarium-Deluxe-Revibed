@@ -69,10 +69,8 @@ Do the steps above first. Then:
    folder of your choice, e.g. `C:\Tools\realesrgan`. That folder should contain
    `realesrgan-ncnn-vulkan.exe` and a `models` folder.
 4. **Make the HD art.** Go to the root of your Insaniquarium-Deluxe-Revibed port folder and run upscale_art.bat:
-   ```
-   python tools\upscale_art.py --game "C:\path\to\Insaniquarium Deluxe" --esrgan "C:\path\to\realesrgan"
-   ```
-   It takes a few minutes, will display one error at first, then eventually will print one line per image. When it ends with `wrote ...\hd`,
+ 
+   Answer the prompts, first entering the path to the root of your Insaniquarium Deluxe folder, then the root of Real-ESRGAN. It takes a few minutes, will display one error at first, then eventually will print one line per image. When it ends with `wrote ...\hd`,
    the Insaniquarium Deluxe game folder will have a new `hd` folder (about 430 MB). If the game is under
    `Program Files`, run the Command Prompt as administrator so the tool can write there.
 5. **Turn the HD art on**: Start the game with `--hd` at the end:
