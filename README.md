@@ -31,17 +31,43 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 
 ## Step by step (from a fresh Windows install)
 
+This gets the game running with its original art.
+
 1. **Install the game** (for example from Steam) and note its folder, e.g.
    `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`.
-2. **Build the port** as described in "Build and run" below (install Rust from
-   https://rustup.rs, then run `cargo build --release` in this folder). Check that the game
-   starts with its original art. NOTE: If you'd like to play it without the HD art, you're done! Proceed below if you'd like to use the HD Art.
+2. **Install the Visual Studio C++ Build Tools** (Rust needs them on Windows): download them
+   from https://visualstudio.microsoft.com/visual-cpp-build-tools/, run the installer, tick
+   **"Desktop development with C++"** and install.
+3. **Install Rust**: download `rustup-init.exe` from https://rustup.rs, run it and accept the
+   default options.
+4. **Get this repository**: on its GitHub page, click **Code > Download ZIP** and unzip it
+   (or `git clone` it). The folder you get is the one these steps call "this folder".
+5. **Build the game**: open a new Command Prompt in this folder and run:
+   ```
+   cargo build --release
+   ```
+   The first build takes a few minutes. The game is built as `target\release\winfish_rs.exe`.
+   The libopenmpt DLLs (music) are copied next to it and must stay beside it.
+6. **Play**: start the game with the path to your game folder:
+   ```
+   target\release\winfish_rs.exe "C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe"
+   ```
+   To launch it later with a double-click, make a desktop shortcut to `winfish_rs.exe` and
+   add the game path (in quotes) to the end of its **Target**. If this folder sits next to
+   the game folder and the game folder is named `Insaniquarium Deluxe`, no path is needed.
 
-### Additional steps if using the HD ART
-    
+That's it: the game runs with its original art. Profiles, saves and high scores are written
+into the game folder's `userdata`, like the original. Point the port at a copy of the game
+folder if you want to keep the original untouched.
+
+## Additional steps if using the HD Art
+
+Do the steps above first. Then:
+
 1. **Install Python 3** from https://www.python.org/downloads/. In the installer, tick
    **"Add python.exe to PATH"**.
-2. **Install Pillow** (the image library the tool uses). Open a new Command Prompt and run:
+2. **Install Pillow** (the image library the upscale tool uses). Open a new Command Prompt
+   and run:
    ```
    pip install pillow
    ```
@@ -49,52 +75,50 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
    download `realesrgan-ncnn-vulkan-20220424-windows.zip` (about 45 MB) and unzip it to a
    folder of your choice, e.g. `C:\Tools\realesrgan`. That folder should contain
    `realesrgan-ncnn-vulkan.exe` and a `models` folder.
-4. **Make the HD art.** In a Command Prompt in this folder (`winfish_rs`), run (with your own
-   paths):
+4. **Make the HD art.** In a Command Prompt in this folder, run (with your own paths):
    ```
    python tools\upscale_art.py --game "C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe" --esrgan "C:\Tools\realesrgan"
    ```
    It takes a few minutes and prints one line per image. When it ends with `wrote ...\hd`,
    the game folder has a new `hd` folder (about 430 MB). If the game is under
-   `Program Files`, Windows may need the Command Prompt to be run as administrator to write
-   there.
-5. **Play with HD art**: start the port with `--hd`:
+   `Program Files`, run the Command Prompt as administrator so the tool can write there.
+5. **Turn the HD art on**: start the game with `--hd` at the end:
    ```
-   target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe" --hd
+   target\release\winfish_rs.exe "C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe" --hd
    ```
-   or double-click `Play HD.bat` (edit the `GAME=` line in it first if your game is not in
-   the `Insaniquarium Deluxe` folder next to this one). You can also make a desktop shortcut
-   to `winfish_rs.exe` and add the game path and `--hd` to its Target.
+   Or double-click `Play HD.bat` in this folder (first edit its `GAME=` line if your game
+   isn't in an `Insaniquarium Deluxe` folder next to this one). For a desktop shortcut, add
+   the game path and `--hd` to the end of its **Target**.
 
 Without `--hd` the game always uses the original art, whether or not the `hd` folder exists.
-To remove the HD art, delete the `hd` folder. `--model realesrgan-x4plus` (the general model)
-gives a softer result that stays closer to the original painting than the default cartoon
-model.
-
-## Build and run
-
-```
-cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
-```
-
-Without a specified path, the port looks for `..\Insaniquarium Deluxe` next to this folder. Add `--hd` to
-use the optional HD art (see "HD art" below); without it the game uses its original art.
-The first build takes a few minutes. The built game is `target\release\winfish_rs.exe`;
-the libopenmpt DLLs (music) are copied next to it by `build.rs` and must stay beside it.
-
-Profiles, saves and high scores are written into the game folder's `userdata`, like the
-original. Point the port at a copy if you want to keep the original folder untouched.
+To remove the HD art, delete the `hd` folder. Adding `--model realesrgan-x4plus` to step 4
+(the general model) gives a softer result that stays closer to the original painting than the
+default cartoon model.
 
 ## Building with an AI agent
 
-An AI coding agent (for example Claude Code) can build the game for you. Give it a prompt
-like:
+An AI coding agent (for example Claude Code) can do the setup for you. It will ask before it
+installs anything. Replace the path with your own game folder and give it one of these
+prompts.
+
+**Without HD art:**
 
 > Clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed and read the README. The
-> game files are at `C:\path\to\Insaniquarium Deluxe`. Build the game, but don't launch it.
+> game files are at `C:\path\to\Insaniquarium Deluxe`. Follow "Step by step (from a fresh
+> Windows install)" to build the game, but don't launch it.
 
-The agent clones the repo and runs `cargo build --release`. When it's done, start the game
-yourself with `target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe"`.
+**With HD art:**
+
+> Clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed and read the README. The
+> game files are at `C:\path\to\Insaniquarium Deluxe`. Follow "Step by step (from a fresh
+> Windows install)" and then "Additional steps if using the HD Art" to build the game and
+> make the HD art, but don't launch it.
+
+When the agent is done, start the game yourself:
+```
+target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe"
+```
+Add `--hd` at the end (or double-click `Play HD.bat`) to play with the HD art.
 
 ## HD art (optional, Powered by https://github.com/xinntao/real-esrgan)
 
