@@ -35,18 +35,20 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
    `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`.
 2. **Build the port** as described in "Build and run" below (install Rust from
    https://rustup.rs, then run `cargo build --release` in this folder). Check that the game
-   starts with its original art. NOTE: If you'd like to play it without the HD art, you're done! Proceed below if you'd like to use the HD Art. 
-3. **Install Python 3** from https://www.python.org/downloads/. In the installer, tick
+   starts with its original art. NOTE: If you'd like to play it without the HD art, you're done! Proceed below if you'd like to use the HD Art.
+###Additional steps for using the HD ART
+    
+4. **Install Python 3** from https://www.python.org/downloads/. In the installer, tick
    **"Add python.exe to PATH"**.
-4. **Install Pillow** (the image library the tool uses). Open a new Command Prompt and run:
+5. **Install Pillow** (the image library the tool uses). Open a new Command Prompt and run:
    ```
    pip install pillow
    ```
-5. **Download Real-ESRGAN**: from https://github.com/xinntao/Real-ESRGAN/releases/tag/v0.2.5.0
+6. **Download Real-ESRGAN**: from https://github.com/xinntao/Real-ESRGAN/releases/tag/v0.2.5.0
    download `realesrgan-ncnn-vulkan-20220424-windows.zip` (about 45 MB) and unzip it to a
    folder of your choice, e.g. `C:\Tools\realesrgan`. That folder should contain
    `realesrgan-ncnn-vulkan.exe` and a `models` folder.
-6. **Make the HD art.** In a Command Prompt in this folder (`winfish_rs`), run (with your own
+7. **Make the HD art.** In a Command Prompt in this folder (`winfish_rs`), run (with your own
    paths):
    ```
    python tools\upscale_art.py --game "C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe" --esrgan "C:\Tools\realesrgan"
@@ -55,7 +57,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
    the game folder has a new `hd` folder (about 430 MB). If the game is under
    `Program Files`, Windows may need the Command Prompt to be run as administrator to write
    there.
-7. **Play with HD art**: start the port with `--hd`:
+8. **Play with HD art**: start the port with `--hd`:
    ```
    target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe" --hd
    ```
