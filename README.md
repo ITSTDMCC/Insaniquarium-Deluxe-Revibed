@@ -29,42 +29,6 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 - About 450 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
 - A Vulkan-capable graphics card, to run the upscaler once
 
-## Build and run
-
-```
-cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
-```
-
-Without a specified path, the port looks for `..\Insaniquarium Deluxe` next to this folder. Add `--hd` to
-use the optional HD art (see "HD art" below); without it the game uses its original art.
-The first build takes a few minutes. The built game is `target\release\winfish_rs.exe`;
-the libopenmpt DLLs (music) are copied next to it by `build.rs` and must stay beside it.
-
-Profiles, saves and high scores are written into the game folder's `userdata`, like the
-original. Point the port at a copy if you want to keep the original folder untouched.
-
-## Building with an AI agent
-
-An AI coding agent (for example Claude Code) can build and launch the game for you. Give it
-a prompt like:
-
-> Clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed and read the README. The
-> game files are at `C:\path\to\Insaniquarium Deluxe`. Build the game and launch it.
-
-The agent clones the repo, runs `cargo build --release`, checks the game loads with a quick
-test run (`WINFISH_NO_SAVE=1`, `WINFISH_SNAPSHOT=300:title.png` should save a picture of the
-main menu), then launches `target\release\winfish_rs.exe` for you to play.
-
-## HD art (optional, Powered by https://github.com/xinntao/real-esrgan)
-
-The game uses its original art unless you start it with `--hd`. HD art is made once, on your
-PC, from your own copy of the game. Every image and font is enlarged 4x by Real-ESRGAN (an
-AI upscaler) and saved in a new `hd` folder inside the game folder. Your original game files
-are never changed, and no game art is stored in this repository.
-
-Needs: about 475 MB of free disk space, a graphics card with Vulkan support (for the
-upscaler), and 8 GB of RAM to play with HD art (the game then uses about 2.2 GB).
-
 ### Step by step (from a fresh Windows install)
 
 1. **Install the game** (for example from Steam) and note its folder, e.g.
@@ -103,6 +67,42 @@ Without `--hd` the game always uses the original art, whether or not the `hd` fo
 To remove the HD art, delete the `hd` folder. `--model realesrgan-x4plus` (the general model)
 gives a softer result that stays closer to the original painting than the default cartoon
 model.
+
+## Build and run
+
+```
+cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
+```
+
+Without a specified path, the port looks for `..\Insaniquarium Deluxe` next to this folder. Add `--hd` to
+use the optional HD art (see "HD art" below); without it the game uses its original art.
+The first build takes a few minutes. The built game is `target\release\winfish_rs.exe`;
+the libopenmpt DLLs (music) are copied next to it by `build.rs` and must stay beside it.
+
+Profiles, saves and high scores are written into the game folder's `userdata`, like the
+original. Point the port at a copy if you want to keep the original folder untouched.
+
+## Building with an AI agent
+
+An AI coding agent (for example Claude Code) can build and launch the game for you. Give it
+a prompt like:
+
+> Clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed and read the README. The
+> game files are at `C:\path\to\Insaniquarium Deluxe`. Build the game and launch it.
+
+The agent clones the repo, runs `cargo build --release`, checks the game loads with a quick
+test run (`WINFISH_NO_SAVE=1`, `WINFISH_SNAPSHOT=300:title.png` should save a picture of the
+main menu), then launches `target\release\winfish_rs.exe` for you to play.
+
+## HD art (optional, Powered by https://github.com/xinntao/real-esrgan)
+
+The game uses its original art unless you start it with `--hd`. HD art is made once, on your
+PC, from your own copy of the game. Every image and font is enlarged 4x by Real-ESRGAN (an
+AI upscaler) and saved in a new `hd` folder inside the game folder. Your original game files
+are never changed, and no game art is stored in this repository.
+
+Needs: about 475 MB of free disk space, a graphics card with Vulkan support (for the
+upscaler), and 8 GB of RAM to play with HD art (the game then uses about 2.2 GB).
 
 ## Layout
 
