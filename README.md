@@ -41,6 +41,8 @@ main menu), then launches `target\release\winfish_rs.exe` for you to play.
 - A GPU with Vulkan, DirectX 12 or OpenGL support
 - Your own copy of Insaniquarium Deluxe
 
+## Hardware Requirements
+
 **Original art**
 - Any graphics card with DirectX 12 or Vulkan support
 - 4 GB RAM
