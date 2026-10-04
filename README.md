@@ -131,6 +131,9 @@ the game):
 | 8 | Choose the alien (Sylvester, Balrog, Gus, Destructor, Ulysses, Psychosquid, Bilaterus) |
 | 9 | Hold to collect: while on, holding the left button collects any money under the cursor |
 
+The middle mouse button also turns hold to collect on or off, with the menu closed too (a
+notice shows the new state). **Escape** in a tank opens the pause menu, like the Menu button.
+
 ## Layout
 
 - `src/game/` — the game's classes (board, fish, aliens, pets, screens, dialogs, ...)

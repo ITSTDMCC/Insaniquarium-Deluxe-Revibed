@@ -30,8 +30,13 @@ pub struct DebugMenu {
     pub speed: usize,
     /// Index into `ALIENS`: the alien key 7 brings in.
     pub alien: usize,
-    /// Holding the left button collects the money under the cursor (key 9).
+    /// Holding the left button collects the money under the cursor (key 9 or the middle
+    /// button).
     pub auto_collect: bool,
+    /// How long the hold-to-collect notice stays up (ms).
+    toast_ms: f64,
+    /// A scripted Escape press for `input` (test hook).
+    pub scripted_escape: bool,
     /// Smoothed frame time (ms).
     frame_ms: f64,
     /// Logic updates per second, measured each second from the app's update counter.
@@ -55,6 +60,10 @@ pub struct DebugPanel;
 #[derive(Component)]
 pub struct DebugText;
 
+/// The short notice shown when hold-to-collect is turned on or off.
+#[derive(Component)]
+pub struct Toast;
+
 /// Keys the menu takes from the game while it is open.
 pub fn captures(menu: &DebugMenu, key: KeyCode) -> bool {
     key == KeyCode::F1 || (menu.open && matches!(key, KeyCode::Digit1 | KeyCode::Digit2 | KeyCode::Digit3 | KeyCode::Digit4 | KeyCode::Digit5 | KeyCode::Digit6 | KeyCode::Digit7 | KeyCode::Digit8 | KeyCode::Digit9))
@@ -74,6 +83,16 @@ pub fn setup(mut commands: Commands, mut menu: ResMut<DebugMenu>) {
         .with_children(|p| {
             p.spawn((Text::new(""), TextFont { font_size: bevy::text::FontSize::Px(18.0), ..default() }, TextColor(bevy::color::Color::WHITE), DebugText));
         });
+    commands.spawn((
+        bevy::ui::Node { position_type: PositionType::Absolute, left: Val::Px(8.0), bottom: Val::Px(8.0), padding: UiRect::all(Val::Px(8.0)), ..default() },
+        BackgroundColor(bevy::color::Color::srgba(0.0, 0.0, 0.0, 0.78)),
+        Visibility::Hidden,
+        GlobalZIndex(10),
+        Toast,
+        Text::new(""),
+        TextFont { font_size: bevy::text::FontSize::Px(18.0), ..default() },
+        TextColor(bevy::color::Color::WHITE),
+    ));
 }
 
 const FILTERS: [(&str, f32); 4] = [("bicubic", 2.0), ("nearest", 3.0), ("bilinear", 0.0), ("xBR", 1.0)];
@@ -87,6 +106,19 @@ fn tank(g: &mut G) -> Ptr {
     if board != NULL && g.is_live(board) { board } else { NULL }
 }
 
+/// The board, when a tank is up and running: shown, not paused, no dialog open.
+pub fn running_tank(g: &mut G) -> Ptr {
+    let board = tank(g);
+    if board == NULL || g.wc(board).offset_0x10 == NULL || g.board(board).field_0x8 {
+        return NULL;
+    }
+    let app = g.globals.DAT_005eb6a4;
+    if !g.sab(app).offset_0x32c.is_empty() || !g.sab(app).offset_0x320.is_empty() {
+        return NULL;
+    }
+    board
+}
+
 fn profile(g: &mut G) -> Ptr {
     let app = g.globals.DAT_005eb6a4;
     if app == NULL { NULL } else { g.wfa(app).offset_0x18c }
@@ -95,6 +127,7 @@ fn profile(g: &mut G) -> Ptr {
 /// F1 and the menu's number keys.
 pub fn keys(
     keys: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
     mut menu: ResMut<DebugMenu>,
     mut g: ResMut<G>,
     host: Res<HostState>,
@@ -118,19 +151,22 @@ pub fn keys(
             "7" => Some(KeyCode::Digit7),
             "8" => Some(KeyCode::Digit8),
             "9" => Some(KeyCode::Digit9),
+            "Esc" => Some(KeyCode::Escape),
             _ => None,
         })
         .collect();
     let pressed = |k: KeyCode| keys.just_pressed(k) || scripted.contains(&k);
+    menu.scripted_escape = scripted.contains(&KeyCode::Escape);
     if pressed(KeyCode::F1) {
         menu.open = !menu.open;
         info!("debug menu {}", if menu.open { "opened" } else { "closed" });
     }
     let before = menu.message.clone();
-    if !menu.open || !host.booted {
+    // The middle button works with the menu closed too (it toggles hold-to-collect).
+    if !host.booted || (!menu.open && !mouse.just_pressed(MouseButton::Middle)) {
         return;
     }
-    if pressed(KeyCode::Digit1) {
+    if menu.open && pressed(KeyCode::Digit1) {
         let board = tank(&mut g);
         menu.message = if board != NULL {
             // `Board::AddMoney`, so the counter (and the virtual tank's shells) update as in play.
@@ -140,7 +176,7 @@ pub fn keys(
             "Money can only be added in a tank.".into()
         };
     }
-    if pressed(KeyCode::Digit2) {
+    if menu.open && pressed(KeyCode::Digit2) {
         let p = profile(&mut g);
         menu.message = if p != NULL {
             crate::game::profile::FUN_00501200(&mut g, p, 1000);
@@ -149,7 +185,7 @@ pub fn keys(
             "No player profile yet.".into()
         };
     }
-    if pressed(KeyCode::Digit3) {
+    if menu.open && pressed(KeyCode::Digit3) {
         let p = profile(&mut g);
         menu.message = if p != NULL {
             let pr = g.profile(p);
@@ -164,7 +200,7 @@ pub fn keys(
             "No player profile yet.".into()
         };
     }
-    if pressed(KeyCode::Digit4) {
+    if menu.open && pressed(KeyCode::Digit4) {
         let has_art = *menu.hd_art.get_or_insert_with(|| g.vfs.root.join("hd").is_dir());
         menu.message = if has_art {
             g.hd.enabled = !g.hd.enabled;
@@ -173,7 +209,7 @@ pub fn keys(
             "No HD art in the game folder (see README, \"HD art\").".into()
         };
     }
-    if pressed(KeyCode::Digit5) {
+    if menu.open && pressed(KeyCode::Digit5) {
         for m in &quads {
             if let Some(mut mat) = materials.get_mut(&m.0) {
                 let i = FILTERS.iter().position(|f| f.1 == mat.mode.x).map_or(0, |i| (i + 1) % FILTERS.len());
@@ -182,14 +218,14 @@ pub fn keys(
             }
         }
     }
-    if pressed(KeyCode::Digit6) {
+    if menu.open && pressed(KeyCode::Digit6) {
         menu.speed = (menu.speed + 1) % SPEEDS.len();
         menu.message = match menu.speed() {
             0.0 => "Game paused.".into(),
             s => format!("Game speed {s}x."),
         };
     }
-    if pressed(KeyCode::Digit7) {
+    if menu.open && pressed(KeyCode::Digit7) {
         let board = tank(&mut g);
         let (kind, name) = ALIENS[menu.alien];
         menu.message = if board != NULL {
@@ -202,13 +238,14 @@ pub fn keys(
             "Aliens can only be brought into a tank.".into()
         };
     }
-    if pressed(KeyCode::Digit8) {
+    if menu.open && pressed(KeyCode::Digit8) {
         menu.alien = (menu.alien + 1) % ALIENS.len();
         menu.message = format!("Next alien: {}.", ALIENS[menu.alien].1);
     }
-    if pressed(KeyCode::Digit9) {
+    if (menu.open && pressed(KeyCode::Digit9)) || mouse.just_pressed(MouseButton::Middle) {
         menu.auto_collect = !menu.auto_collect;
         menu.message = format!("Hold to collect money: {}.", if menu.auto_collect { "on" } else { "off" });
+        menu.toast_ms = 2000.0;
     }
     if menu.message != before {
         info!("debug menu: {}", menu.message);
@@ -227,8 +264,9 @@ pub fn overlay(
     windows: Query<&Window>,
     quads: Query<&MeshMaterial2d<UpscaleMaterial>>,
     materials: Res<Assets<UpscaleMaterial>>,
-    mut panel: Query<&mut Visibility, With<DebugPanel>>,
-    mut text: Query<&mut Text, With<DebugText>>,
+    mut panel: Query<&mut Visibility, (With<DebugPanel>, Without<Toast>)>,
+    mut text: Query<&mut Text, (With<DebugText>, Without<Toast>)>,
+    mut toast: Query<(&mut Visibility, &mut Text), With<Toast>>,
 ) {
     let dt = time.delta_secs_f64() * 1000.0;
     menu.frame_ms = if menu.frame_ms == 0.0 { dt } else { menu.frame_ms * 0.95 + dt * 0.05 };
@@ -245,6 +283,17 @@ pub fn overlay(
                 menu.ups = (count - start) as f64 * 1000.0 / menu.ups_window.0;
                 menu.ups_window = (0.0, count);
             }
+        }
+    }
+    menu.toast_ms = (menu.toast_ms - dt).max(0.0);
+    let toast_text = format!("Hold to collect money: {}", if menu.auto_collect { "ON" } else { "OFF" });
+    for (mut v, mut t) in &mut toast {
+        let want = if menu.toast_ms > 0.0 { Visibility::Visible } else { Visibility::Hidden };
+        if *v != want {
+            *v = want;
+        }
+        if t.0 != toast_text {
+            t.0 = toast_text.clone();
         }
     }
     let want = if menu.open { Visibility::Visible } else { Visibility::Hidden };
@@ -293,7 +342,7 @@ pub fn overlay(
          6  Game speed: 1x, 2x, 4x, paused\n\
          7  Bring in an alien: {}\n\
          8  Choose the alien\n\
-         9  Hold the left button to collect money: {}\n\
+         9  Hold the left button to collect money (or middle click): {}\n\
          \n\
          {}",
         menu.frame_ms,
@@ -324,12 +373,8 @@ pub fn auto_collect(menu: Res<DebugMenu>, buttons: Res<ButtonInput<MouseButton>>
         None => host.last_mouse,
     };
     let Some((mx, my)) = cursor else { return };
-    let board = tank(&mut g);
-    if board == NULL || g.wc(board).offset_0x10 == NULL || g.board(board).field_0x8 {
-        return;
-    }
-    let app = g.globals.DAT_005eb6a4;
-    if !g.sab(app).offset_0x32c.is_empty() || !g.sab(app).offset_0x320.is_empty() {
+    let board = running_tank(&mut g);
+    if board == NULL {
         return;
     }
     let coins = g.board(board).offset_0xc[crate::game::board_level::vec_index(0xa8)].clone();

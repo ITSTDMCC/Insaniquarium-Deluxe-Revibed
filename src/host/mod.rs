@@ -225,6 +225,10 @@ fn input(
         return;
     }
     let wm = crate::game::boot::widget_manager(&mut g);
+    if debug_menu.scripted_escape && debug::running_tank(&mut g) != NULL {
+        let board = debug::running_tank(&mut g);
+        crate::game::board::vfunction3_for_ButtonListener(&mut g, board, 0x7b);
+    }
     if wm == NULL {
         return;
     }
@@ -249,7 +253,8 @@ fn input(
         _ => {}
     }
     if let Some((x, y)) = pos {
-        for (b, clicks) in [(MouseButton::Left, 1), (MouseButton::Right, -1), (MouseButton::Middle, 3)] {
+        // (The middle button toggles hold-to-collect, see `debug::auto_collect`.)
+        for (b, clicks) in [(MouseButton::Left, 1), (MouseButton::Right, -1)] {
             if buttons.just_pressed(b) {
                 crate::sexy::widget_manager::FUN_0046d940(&mut g, wm, x, y, clicks);
             }
@@ -265,6 +270,14 @@ fn input(
     for ev in keys.read() {
         // F1 and the debug menu's keys are not the game's.
         if debug::captures(&debug_menu, ev.key_code) {
+            continue;
+        }
+        // (Port addition) Escape in a running tank opens the pause menu, as the Menu button does.
+        if ev.key_code == KeyCode::Escape && debug::running_tank(&mut g) != NULL {
+            if ev.state.is_pressed() {
+                let board = debug::running_tank(&mut g);
+                crate::game::board::vfunction3_for_ButtonListener(&mut g, board, 0x7b);
+            }
             continue;
         }
         if let Some(vk) = virtual_key(ev.key_code) {

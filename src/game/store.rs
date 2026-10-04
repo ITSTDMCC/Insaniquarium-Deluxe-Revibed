@@ -1293,14 +1293,15 @@ pub fn FUN_0054bca0(g: &mut G, this: Ptr) {
 
 /// port: 0054fdd0 FUN_0054fdd0
 /// `ConfirmPurchase(const string& theLines)`: dialog 0x23 "Confirm Purchase" (yes/no) with
-/// a "BUY" button, 350 wide at its place.
+/// a "BUY" button, 350 wide. (Port change, asked for by the player: the original keeps the
+/// left edge `DoDialog` gave a 400-wide dialog, 25 pixels off centre; here it is re-centred.)
 pub fn FUN_0054fdd0(g: &mut G, this: Ptr, param_1: &[u8]) {
     let d = crate::game::win_fish_app::vfunction73(g, this, 0x23, true, b"Confirm Purchase", param_1, b"", 2);
     let yes = g.dialog(d).offset_0x8;
     g.btn(yes).field_0x4 = b"BUY".to_vec();
     let h = vcall!(g, d, dlg.vfunction74, 0x15e);
-    let (x, y) = (g.wc(d).offset_0x2c, g.wc(d).offset_0x30);
-    vcall!(g, d, w.vfunction41, x, y, 0x15e, h);
+    let (aw, ah) = (g.sab(this).field_0xb8, g.sab(this).field_0xbc);
+    vcall!(g, d, w.vfunction41, (aw - 0x15e) / 2, (ah - h) / 2, 0x15e, h);
 }
 
 /// port: 005331a0 Sexy::StoreButtonWidget::StoreButtonWidget
@@ -1571,8 +1572,10 @@ pub fn FUN_005372f0(g: &mut G, this: Ptr) {
 
 /// port: 0054c800 FUN_0054c800
 /// `ShowFishNamingDialog(const string& theLines, bool isFemale, const string& theName, bool
-/// showNote)`: the naming dialog with the current name selected, 400 wide (lower and to the
-/// right while the store is up), as dialog 0xf. (`param_2` is not read by the original.)
+/// showNote)`: the naming dialog with the current name selected, 400 wide, as dialog 0xf.
+/// (`param_2` is not read by the original.) (Port change, asked for by the player: the
+/// original moves it lower and to the right, to (0xda, 200), while the store is up; here it
+/// stays centred at (0x78, 0x96) there too.)
 pub fn FUN_0054c800(g: &mut G, this: Ptr, param_1: &[u8], param_2: bool, param_3: &[u8], param_4: bool) {
     let _ = param_2;
     let d = crate::game::money_dialog::FUN_00533a40(g, this, param_1);
@@ -1584,11 +1587,7 @@ pub fn FUN_0054c800(g: &mut G, this: Ptr, param_1: &[u8], param_2: bool, param_3
     g.edit(edit).offset_0x54 = len;
     g.edit(edit).offset_0x58 = 0;
     let h = vcall!(g, d, dlg.vfunction74, 400);
-    if g.wfa(this).offset_0xe4 == NULL {
-        vcall!(g, d, w.vfunction41, 0x78, 0x96, 400, h);
-    } else {
-        vcall!(g, d, w.vfunction41, 0xda, 200, 400, h);
-    }
+    vcall!(g, d, w.vfunction41, 0x78, 0x96, 400, h);
     crate::sexy::sexy_app_base::vfunction76(g, this, 0xf, d);
 }
 
