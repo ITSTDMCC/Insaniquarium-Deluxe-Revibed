@@ -213,7 +213,7 @@ address,qualified_name,file_path,size_bytes,text_sha256,region,status,rust_item,
 00410390,FUN_00410390,src/_global/seg_00410000.c,331,da1833056079d3bf72942b08617c701b14715a740e1ef6f3696953da4daaa229,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 004104f0,FUN_004104f0,src/_global/seg_00410000.c,347,f1a539e5d41a05fdf787bb6012f96a1d148e28c6433b4c5534e9b4bf316682e4,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 00410660,FUN_00410660,src/_global/seg_00410000.c,334,8de0c8df5e4fee72b02d832e728787c9601fa7e031dff6357d735b0d4d807892,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
-004107c0,FUN_004107c0,src/_global/seg_00410000.c,599,d222ecd42b60f114582869c3880139e6ce8bf520c3ca3ba3bfeedab4032865e2,framework,ported,src/sexy/app_host.rs:144,
+004107c0,FUN_004107c0,src/_global/seg_00410000.c,599,d222ecd42b60f114582869c3880139e6ce8bf520c3ca3ba3bfeedab4032865e2,framework,ported,src/sexy/app_host.rs:167,
 00410a1d,Catch_All@00410a1d,src/_global/seg_00410000.c,187,903c250ca901266a43e2beabaefdc3ba178bebeaed6286489cae334c28097567,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 00410af0,std::ios_base::~ios_base,src/std/std__ios_base.c,30,809defa8c0fc996b44d8fcf87970071f729ac9392510c12826678743e066bc1c,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 00410b10,FUN_00410b10,src/_global/seg_00410000.c,114,9c13a9daec4c66c485d38c505dceabcdbc735c3833838734d28d609bac607b28,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
@@ -1694,7 +1694,7 @@ address,qualified_name,file_path,size_bytes,text_sha256,region,status,rust_item,
 0047f5a0,FUN_0047f5a0,src/_global/seg_00470000.c,37,1cb10609a52bb7fea2b21896d146c5001e0f7af3fa2f4952da7783678dd6a0a1,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 0047f5d0,FUN_0047f5d0,src/_global/seg_00470000.c,1326,7268006aeb8246b17d79ea6a486c13ff95183bc935cf7f6b03a2c726a200e6a0,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 0047fb10,FUN_0047fb10,src/_global/seg_00470000.c,174,14573bcf14036256dc79b0ab43fec3466c7846ef68213e23125f52bd8f16fdbf,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
-0047fbc0,FUN_0047fbc0,src/_global/seg_00470000.c,62,0d521eb9d05eafa9fff9823234b047e8504875d06ee2652b9164160a4d456f8c,framework,ported,src/sexy/app_host.rs:133,
+0047fbc0,FUN_0047fbc0,src/_global/seg_00470000.c,62,0d521eb9d05eafa9fff9823234b047e8504875d06ee2652b9164160a4d456f8c,framework,ported,src/sexy/app_host.rs:156,
 0047fc00,Sexy::SexyAppBase::vfunction40,src/Sexy/Sexy__SexyAppBase.c,53,ea4a781d5bc2a26c16053ad5d064ae630a6360b34567b92d6a5b88de2cbaf2b3,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 0047fc40,Sexy::SexyAppBase::vfunction41,src/Sexy/Sexy__SexyAppBase.c,1284,32925f1745314e56911d8152edaac20a1a760b7c78f32aa55f9c024f3260a313,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 00480170,Sexy::SexyAppBase::vfunction43,src/Sexy/Sexy__SexyAppBase.c,259,441bd83d43de0ff53c70ac00942a1b2ed73a00453ca0a995dcbf60cde685231b,framework,ported,src/sexy/sexy_app_base.rs:466,
@@ -1763,8 +1763,8 @@ address,qualified_name,file_path,size_bytes,text_sha256,region,status,rust_item,
 00486c00,Sexy::SexyAppBase::vfunction49,src/Sexy/Sexy__SexyAppBase.c,495,9a745e715e23c3e6e8797572c754ce8c04ec6537c2ded23ae7faf21467a6a2e6,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 00486df0,FUN_00486df0,src/_global/seg_00480000.c,733,7978cb937aa69e22fa0b29d725baa576d9202cce442e20088355895e7238f073,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 004870f0,FUN_004870f0,src/_global/seg_00480000.c,125,9dd268aaa1f79f63fe3b3e7630c6899bad44ae744377192bdecd016b150c219e,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
-00487170,FUN_00487170,src/_global/seg_00480000.c,102,5130f25b8687e5244f3af47d3b666661d609bfdb37697fe67abb530b7e0af3f6,framework,ported,src/sexy/app_host.rs:53,
-004871e0,FUN_004871e0,src/_global/seg_00480000.c,105,5e6e781477a34c064a93d570cdaaec694bb448588e394705e38be291fb0bb984,framework,ported,src/sexy/app_host.rs:59,
+00487170,FUN_00487170,src/_global/seg_00480000.c,102,5130f25b8687e5244f3af47d3b666661d609bfdb37697fe67abb530b7e0af3f6,framework,ported,src/sexy/app_host.rs:54,
+004871e0,FUN_004871e0,src/_global/seg_00480000.c,105,5e6e781477a34c064a93d570cdaaec694bb448588e394705e38be291fb0bb984,framework,ported,src/sexy/app_host.rs:60,
 00487250,FUN_00487250,src/_global/seg_00480000.c,155,d7edd401903ba6d50336617089b761c94e0119589a5f7949d6c189782437e19c,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"
 004872f0,FUN_004872f0,src/_global/seg_00480000.c,157,1fc3c7d74bf0138a83bee6272eda71e6114f48f8837e81f0979d096afdeac7ac,framework,ported,src/sexy/sexy_app_base.rs:171,
 00487390,FUN_00487390,src/_global/seg_00480000.c,231,daa446d365e8a7ed61e77a0bfc0629cdb5e959106b7e66dea304d3d941632cbf,framework,replaced,,"PopCap SexyApp framework (windowing, DirectDraw/D3D, widgets, sound, resources): Bevy"

@@ -5,7 +5,8 @@
 //! surface, the sound and music managers, the `WidgetManager` and the `ResourceManager`,
 //! and reads settings from the registry; `SexyApp::Init` adds `properties\partner.xml`.
 //! [`sexy_app_init`] performs the same state changes the game relies on, with Bevy owning
-//! the window. The registry lives in `G::registry` (saved by the host to `registry.ini`).
+//! the window. The registry lives in `G::registry`, kept in the game folder as
+//! `userdata\registry.ini` (one `name=value` per line).
 
 use crate::sexy::prelude::*;
 use std::collections::HashMap;
@@ -78,8 +79,30 @@ pub fn registry_read_boolean(g: &mut G, key: &str) -> Option<bool> {
     registry_read_integer(g, key).map(|v| v != 0)
 }
 
+/// Where the replaced registry is kept (written through the save path, like the profiles).
+pub const REGISTRY_FILE: &str = "userdata\\registry.ini";
+
+/// Reads the saved registry (before `SexyAppBase::Init` reads its settings).
+pub fn registry_load(g: &mut G) {
+    let Some(bytes) = g.vfs.read(REGISTRY_FILE) else { return };
+    let text = String::from_utf8_lossy(bytes).to_string();
+    for line in text.lines() {
+        if let Some((k, v)) = line.split_once('=') {
+            g.registry.insert(k.trim().to_string(), v.trim().to_string());
+        }
+    }
+}
+
+/// `RegSetValueEx` on the replaced registry: the value, and the file rewritten when it changed.
 pub fn registry_write(g: &mut G, key: &str, value: String) {
+    if g.registry.get(key) == Some(&value) {
+        return;
+    }
     g.registry.insert(key.to_string(), value);
+    let mut keys: Vec<_> = g.registry.iter().collect();
+    keys.sort();
+    let text: String = keys.iter().map(|(k, v)| format!("{k}={v}\r\n")).collect();
+    g.vfs.write(REGISTRY_FILE, text.into_bytes());
 }
 
 /// What `SexyAppBase::Init` + `SexyApp::Init` leave behind that the game reads: screen size,
