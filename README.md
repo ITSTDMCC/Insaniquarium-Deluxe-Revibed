@@ -42,11 +42,12 @@ This gets the game running with its original art.
 4. **Get this repository**: Pull down the latest release and unzip it. Place the unzipped folder in your desired location, preferably sitting next to the original game.
 5. **Build the game**: open a new Command Prompt, navigate to the unzipped folder and run:
    ```
-   cargo build --release
+   cargo run --release -- "C:\path\to\Insaniquarium Deluxe"
    ```
+   Without a specified path, the port looks for ..\Insaniquarium Deluxe next to this folder
    The first build takes a few minutes. The game is built as `target\release\winfish_rs.exe`.
    The libopenmpt DLLs (music) are copied next to it and must stay beside it.
-6. **Play**: Start the game using winfish_rs.exe:
+7. **Play**: Start the game using winfish_rs.exe:
 
    You can additionally make a desktop shortcut to `winfish_rs.exe` and
    add the game path (in quotes) to the end of its **Target**. If this folder sits next to
