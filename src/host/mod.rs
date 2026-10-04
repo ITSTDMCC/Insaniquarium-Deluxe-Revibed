@@ -9,6 +9,7 @@
 //! frame time as the clock.
 
 pub mod audio;
+pub mod debug;
 pub mod music;
 pub mod openmpt;
 pub mod upscale;
@@ -48,6 +49,8 @@ pub struct HostState {
     pub fixed_updates: u64,
     /// The screen mode last given to the window (`mIsWindowed`), once the app exists.
     pub applied_windowed: Option<bool>,
+    /// Game time gained (or lost) against the clock under the debug menu's game speed (ms).
+    pub speed_offset_ms: f64,
 }
 
 pub struct WinFishPlugin {
@@ -64,11 +67,12 @@ impl Plugin for WinFishPlugin {
             .insert_resource(GameDir(self.game_dir.clone()))
             .insert_resource(ClearColor(bevy::color::Color::BLACK))
             .init_resource::<HostState>()
-            .add_systems(Startup, (setup_screen, start_vfs_load))
+            .init_resource::<debug::DebugMenu>()
+            .add_systems(Startup, (setup_screen, start_vfs_load, debug::setup))
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
             .add_plugins(upscale::plugin)
-            .add_systems(Update, (poll_vfs_load, focus, input, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, apply_screen_mode, fit_screen).chain());
+            .add_systems(Update, (poll_vfs_load, focus, debug::keys, input, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, apply_screen_mode, fit_screen, debug::overlay).chain());
     }
 }
 
@@ -204,6 +208,7 @@ fn input(
     buttons: Res<ButtonInput<MouseButton>>,
     mut wheel: MessageReader<MouseWheel>,
     mut keys: MessageReader<bevy::input::keyboard::KeyboardInput>,
+    debug_menu: Res<debug::DebugMenu>,
 ) {
     if !host.booted {
         return;
@@ -247,6 +252,10 @@ fn input(
     }
     // WM_KEYDOWN / WM_KEYUP with Windows virtual-key codes, WM_CHAR with the typed byte.
     for ev in keys.read() {
+        // F1 and the debug menu's keys are not the game's.
+        if debug::captures(&debug_menu, ev.key_code) {
+            continue;
+        }
         if let Some(vk) = virtual_key(ev.key_code) {
             if ev.state.is_pressed() {
                 crate::sexy::widget_manager::FUN_0046dc10(&mut g, wm, vk);
@@ -545,7 +554,7 @@ fn virtual_key(k: KeyCode) -> Option<u32> {
 }
 
 /// Fixed 10 ms logic steps, then one redraw of the dirty widgets.
-fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>) {
+fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>, debug_menu: Res<debug::DebugMenu>) {
     if !host.booted {
         return;
     }
@@ -567,17 +576,22 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>) {
         return;
     }
     let started = *host.started.get_or_insert_with(std::time::Instant::now);
-    g.tick_count = started.elapsed().as_millis() as u32;
+    // The debug menu's game speed (1 normally) scales the time the game sees.
+    let speed = debug_menu.speed();
+    let dt = time.delta_secs_f64() * 1000.0;
+    host.speed_offset_ms += dt * (speed - 1.0);
+    g.tick_count = (started.elapsed().as_millis() as f64 + host.speed_offset_ms).max(0.0) as u32;
     crate::game::boot::loading_thread_slice(&mut g);
-    host.accum_ms += time.delta_secs_f64() * 1000.0;
+    host.accum_ms += dt * speed;
     // At most 10 catch-up updates per frame, like the framework's frame skip limit.
+    let max_steps = (10.0 * speed.max(1.0)) as i32;
     let mut steps = 0;
-    while host.accum_ms >= FRAME_TIME_MS && steps < 10 {
+    while host.accum_ms >= FRAME_TIME_MS && steps < max_steps {
         crate::game::boot::update_frame(&mut g);
         host.accum_ms -= FRAME_TIME_MS;
         steps += 1;
     }
-    if steps == 10 {
+    if steps == max_steps {
         host.accum_ms = 0.0;
     }
     crate::game::boot::draw_frame(&mut g);

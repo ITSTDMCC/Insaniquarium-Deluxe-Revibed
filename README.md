@@ -36,6 +36,8 @@ An AI agent or a test can play the game through environment variables:
 | `WINFISH_NO_SAVE=1` | Saves stay in memory (nothing written to the game folder). |
 | `WINFISH_NO_AUDIO=1` | No sound or music. |
 | `WINFISH_HD=1` | Same as `--hd`: uses the HD art (see below). |
+| `WINFISH_DEBUG_MENU=1` | Starts with the debug menu open. |
+| `WINFISH_DEBUG_KEYS=1100:F1;1110:1` | Presses F1 or the debug menu's keys on those frames. |
 | `WINFISH_FILTER=<name>` | How the picture is enlarged: `bicubic` (default, keeps every original pixel exact), `nearest` (sharp blocks), `bilinear` (soft), `xbr` (redraws edges as smooth curves). |
 
 A script is a list of `frame:action:arg` steps separated by `;` (frames count rendered
@@ -109,6 +111,22 @@ Without `--hd` the game always uses the original art, whether or not the `hd` fo
 To remove the HD art, delete the `hd` folder. `--model realesrgan-x4plus` (the general model)
 gives a softer result that stays closer to the original painting than the default cartoon
 model.
+
+## Debug menu (experimental)
+
+Press **F1** in the game to show or hide the debug menu. It shows the frame rate, the window
+size, whether HD art is on, the scaling filter, the game speed, the tank's money and the
+player's shells. While it is open, the number keys do the following (they are not passed to
+the game):
+
+| Key | Action |
+|---|---|
+| 1 | Add $1,000 (in a tank) |
+| 2 | Add 1,000 shells |
+| 3 | Unlock all adventure tanks (saved to the player's profile) |
+| 4 | HD art on / off (needs the `hd` folder) |
+| 5 | Next scaling filter (bicubic, nearest, bilinear, xBR) |
+| 6 | Game speed: 1x, 2x, 4x, paused |
 
 ## Layout
 
