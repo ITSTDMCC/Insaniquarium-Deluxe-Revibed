@@ -21,7 +21,7 @@ the libopenmpt DLLs (music) are copied next to it by `build.rs` and must stay be
 Profiles, saves and high scores are written into the game folder's `userdata`, like the
 original. Point the port at a copy if you want to keep the original folder untouched.
 
-### Building with an AI agent
+## Building with an AI agent
 
 An AI coding agent (for example Claude Code) can build and launch the game for you. Give it
 a prompt like:
