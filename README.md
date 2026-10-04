@@ -34,7 +34,7 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 This gets the game running with its original art.
 
 1. **Install the game** (for example from Steam) and note its folder, e.g.
-   `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`.
+   `C:\Program Files (x86)\Steam\steamapps\common\Insaniquarium Deluxe`. I would recommend making a separate copy of the game in a new folder where it will reside next to the revibed version.
 2. **Install the Visual Studio C++ Build Tools** (Rust needs them on Windows): download them
    from https://visualstudio.microsoft.com/visual-cpp-build-tools/, run the installer, tick
    **"Desktop development with C++"** and install.
