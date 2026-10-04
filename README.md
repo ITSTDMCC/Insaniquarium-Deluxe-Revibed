@@ -53,44 +53,6 @@ main menu), then launches `target\release\winfish_rs.exe` for you to play.
 - About 450 MB of free disk space (430 MB HD art, plus the 45 MB upscaler)
 - A Vulkan-capable graphics card, to run the upscaler once
 
-## Playing without a screen (scripted runs)
-
-An AI agent or a test can play the game through environment variables:
-
-| Variable | Effect |
-|---|---|
-| `WINFISH_SCRIPT=@steps.txt` | Input at given frames (or the script inline instead of `@file`). |
-| `WINFISH_SNAPSHOT="900:a.png\|1500:b.png"` | Saves the 640×480 screen at those frames; quits after the last one. |
-| `WINFISH_FIXED_STEPS=1` | One logic update per rendered frame, so runs are reproducible. |
-| `WINFISH_AUTOPLAY=1` | The port plays by itself (shoots aliens, collects coins, feeds, buys). |
-| `WINFISH_NO_SAVE=1` | Saves stay in memory (nothing written to the game folder). |
-| `WINFISH_NO_AUDIO=1` | No sound or music. |
-| `WINFISH_HD=1` | Same as `--hd`: uses the HD art (see below). |
-| `WINFISH_FILTER=<name>` | How the picture is enlarged: `bicubic` (default, keeps every original pixel exact), `nearest` (sharp blocks), `bilinear` (soft), `xbr` (redraws edges as smooth curves). |
-
-A script is a list of `frame:action:arg` steps separated by `;` (frames count rendered
-frames from launch):
-
-- `click:x,y` — left click at screen coordinates (0..639, 0..479)
-- `type:text` — typed characters (trailing spaces at the very end of the script are trimmed)
-- `vk:13` — a key press by Windows virtual-key code (13 = Enter)
-- Test setup (not game input): `shells:n` (player's shells), `levels:n` (first n levels
-  done), `finished:n` (adventure beaten n times), `stories:hex` (unlocked stories),
-  `ending:3,7,12` (open the ending as if those pets were lost)
-
-Example: create a player named Tester, open the Adventure, continue past the instructions,
-and take a screenshot in the first tank:
-
-```
-set WINFISH_NO_SAVE=1
-set WINFISH_SCRIPT=200:click:300,430;260:type:Tester;262:vk:13;400:click:465,85;700:click:318,432
-set WINFISH_SNAPSHOT=1100:tank.png
-target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe"
-```
-
-To play step by step: run with a snapshot, look at the picture, add the next clicks to the
-script, run again (with `WINFISH_FIXED_STEPS=1` the same script gives the same game).
-
 ## HD art (optional)
 
 The game uses its original art unless you start it with `--hd`. HD art is made once, on your
@@ -150,6 +112,45 @@ model.
   `stl_instances.csv`, screenshots
 - `tools/` — scripts that generate the vtables and manifest from the reference database
 - `vendor/libopenmpt/` — libopenmpt 0.8.9 (BSD-3-Clause), the MO3 music player
+
+## Playing without a screen (scripted runs)
+
+An AI agent or a test can play the game through environment variables:
+
+| Variable | Effect |
+|---|---|
+| `WINFISH_SCRIPT=@steps.txt` | Input at given frames (or the script inline instead of `@file`). |
+| `WINFISH_SNAPSHOT="900:a.png\|1500:b.png"` | Saves the 640×480 screen at those frames; quits after the last one. |
+| `WINFISH_FIXED_STEPS=1` | One logic update per rendered frame, so runs are reproducible. |
+| `WINFISH_AUTOPLAY=1` | The port plays by itself (shoots aliens, collects coins, feeds, buys). |
+| `WINFISH_NO_SAVE=1` | Saves stay in memory (nothing written to the game folder). |
+| `WINFISH_NO_AUDIO=1` | No sound or music. |
+| `WINFISH_HD=1` | Same as `--hd`: uses the HD art (see below). |
+| `WINFISH_FILTER=<name>` | How the picture is enlarged: `bicubic` (default, keeps every original pixel exact), `nearest` (sharp blocks), `bilinear` (soft), `xbr` (redraws edges as smooth curves). |
+
+A script is a list of `frame:action:arg` steps separated by `;` (frames count rendered
+frames from launch):
+
+- `click:x,y` — left click at screen coordinates (0..639, 0..479)
+- `type:text` — typed characters (trailing spaces at the very end of the script are trimmed)
+- `vk:13` — a key press by Windows virtual-key code (13 = Enter)
+- Test setup (not game input): `shells:n` (player's shells), `levels:n` (first n levels
+  done), `finished:n` (adventure beaten n times), `stories:hex` (unlocked stories),
+  `ending:3,7,12` (open the ending as if those pets were lost)
+
+Example: create a player named Tester, open the Adventure, continue past the instructions,
+and take a screenshot in the first tank:
+
+```
+set WINFISH_NO_SAVE=1
+set WINFISH_SCRIPT=200:click:300,430;260:type:Tester;262:vk:13;400:click:465,85;700:click:318,432
+set WINFISH_SNAPSHOT=1100:tank.png
+target\release\winfish_rs.exe "C:\path\to\Insaniquarium Deluxe"
+```
+
+To play step by step: run with a snapshot, look at the picture, add the next clicks to the
+script, run again (with `WINFISH_FIXED_STEPS=1` the same script gives the same game).
+
 
 ## Known differences from the original
 
