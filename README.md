@@ -69,9 +69,10 @@ Do the steps above first. Then:
    folder of your choice, e.g. `C:\Tools\realesrgan`. That folder should contain
    `realesrgan-ncnn-vulkan.exe` and a `models` folder.
 4. **Make the HD art.** Go to the root of your Insaniquarium-Deluxe-Revibed port folder and run upscale_art.bat file:
-   Answer the prompts, first entering the path to the root of your Insaniquarium Deluxe folder, then the root of Real-ESRGAN. It takes a few minutes, will display one error at first, then eventually will print one line per image. When it ends with `wrote ...\hd`. Upon completion, the Insaniquarium Deluxe game folder will have a new `hd` folder (about 430 MB). If the game is under
+   Answer the prompts, first entering the path to the root of your Insaniquarium Deluxe folder (if it's located to the Insaniquarium-Deluxe-Revibed port folder, you can just hit enter) then the root of Real-ESRGAN.
+   It takes a few minutes, will display the following line of text at first "skipped images/editbox: not found", then eventually will print one line per image. When it ends with `wrote ...\hd`. Upon completion, the Insaniquarium Deluxe game folder will have a new `hd` folder (about 430 MB). If the game is under
    `Program Files`, run the Command Prompt as administrator so the tool can write there.
-5. **Turn the HD art on**: Start the game with `Play HD.bat` in the Insaniquarium-Deluxe-Revibed port folder (first edit its `GAME=` line if your game
+6. **Turn the HD art on**: Start the game with `Play HD.bat` in the Insaniquarium-Deluxe-Revibed port folder (first edit its `GAME=` line if your game
    isn't in an `Insaniquarium Deluxe` folder next to this one). For a desktop shortcut, add
    the game path and `--hd` to the end of its **Target**. It can also be toggled via the debug menu.
 
