@@ -8,6 +8,8 @@ This repository contains no game data. You are required to provide your own copy
 
 https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 
+**Mac users:** See [Step by step (from a fresh Mac install)](#step-by-step-from-a-fresh-mac-install).
+
 ## Software Requirements
 
 - Windows 10/11 x64
@@ -91,6 +93,75 @@ Do the steps above first. Then:
 
 Without `--hd` the game always uses the original art, whether or not the `hd` folder exists.
 To remove the HD art, delete the `hd` folder.
+
+## Step by step (from a fresh Mac install)
+
+This gets the game running with its original art. Tested on Apple Silicon; Intel
+Macs have not been tested yet. Allow several GB for the tools and first build.
+
+1. **Buy the game** from [Steam](https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/)
+   and sign in to [Steam for Mac](https://store.steampowered.com/about/). You need
+   the full game, not the demo. Steam lists it as Windows-only, but the port runs
+   natively on your Mac using the original game data.
+2. **Download the Windows files**: Open Terminal (Command–Space, type Terminal)
+   and run:
+   ```sh
+   open "steam://open/console"
+   ```
+   In **Steam's Console tab**, enter:
+   ```text
+   @sSteamCmdForcePlatformType windows
+   ```
+   Install Insaniquarium Deluxe from your Library. If Install is still unavailable,
+   run `open "steam://install/3320"` in **Terminal**. Pause other downloads until
+   this one finishes, then restore the Mac platform in **Steam's console**:
+   ```text
+   @sSteamCmdForcePlatformType macos
+   ```
+3. **Copy the game data**: In Terminal, run:
+   ```sh
+   mkdir -p "$HOME/Games/insaniquarium"
+   open "$HOME/Games/insaniquarium"
+   ```
+   In Steam, right-click the game and choose **Manage → Browse local files**.
+   Copy the entire **Insaniquarium Deluxe** folder into the folder you just opened.
+   It should contain `images`, `sounds`, `music`, `properties`, etc.
+4. **Install the build tools** (skip anything already installed):
+   Run `xcode-select --install` in Terminal and finish the installation dialog.
+   Install [Homebrew](https://brew.sh/), including its **Next steps** to add it to
+   your shell. Then install the music library:
+   ```sh
+   brew install libopenmpt
+   ```
+   Install the latest stable [Rust](https://rust-lang.org/tools/install/) using
+   the macOS command on that page and accept the defaults. Then run:
+   ```sh
+   . "$HOME/.cargo/env"
+   ```
+   If you already use rustup, update with `rustup update stable`. On Apple Silicon,
+   use native tools rather than running Terminal under Rosetta.
+5. **Get this repository and build the game**: In Terminal, run:
+   ```sh
+   cd "$HOME/Games/insaniquarium"
+   git clone https://github.com/ITSTDMCC/Insaniquarium-Deluxe-Revibed.git
+   cd Insaniquarium-Deluxe-Revibed
+   export LIBRARY_PATH="$(brew --prefix libopenmpt)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
+   cargo build --release --locked
+   ```
+   The `LIBRARY_PATH` line tells the build where to find the music library; repeat
+   it if building in a new Terminal session. The first build takes several minutes.
+   Wait for **Finished**. The game is built as `target/release/winfish_rs`.
+6. **Play**: Run this in Terminal whenever you want to play:
+   ```sh
+   cd "$HOME/Games/insaniquarium/Insaniquarium-Deluxe-Revibed"
+   ./target/release/winfish_rs "../Insaniquarium Deluxe"
+   ```
+   No rebuild needed. Keep libopenmpt installed, and launch this executable instead
+   of Steam's Play button. Saves are in `Insaniquarium Deluxe/userdata` in your
+   copied game folder; keep that folder when updating.
+
+The `.bat` files for HD art are Windows scripts. Mac HD generation has not been
+checked; get the original art working first.
 
 ## Building with an AI agent
 
