@@ -8,14 +8,10 @@ This repository contains no game data. You are required to provide your own copy
 
 https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 
-## Installation guides
+**Mac users:** Follow the [step-by-step macOS instructions](docs/macos.md), including
+how to download the game from Steam on a Mac. The instructions below are for Windows.
 
-- **macOS:** [Step-by-step Mac setup](docs/macos.md), including buying the game on Steam,
-  downloading its Windows game data on a Mac, building the native port, and making a
-  double-click launcher.
-- **Windows:** Follow the requirements and instructions below.
-
-## Software Requirements (Windows)
+## Software Requirements
 
 - Windows 10/11 x64
 - Your own copy of Insaniquarium Deluxe

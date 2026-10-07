@@ -1,28 +1,34 @@
-# Play Insaniquarium Deluxe Revibed on macOS
+# Insaniquarium Deluxe Revibed — macOS setup
 
-This guide takes you from buying the original game to running the Rust/Bevy port
-with its original graphics on your Mac. Steam supplies the game data; you build
-the Mac executable from this repository. You do not need Windows, Wine, CrossOver,
-or the separate WinFish C++ project.
+This gets the game running on your Mac with its original art. You will download
+the game data from your own copy on Steam, then build the Mac version of the port.
+No Windows installation, Wine or CrossOver needed.
 
-The release build has been verified on Apple Silicon. Intel Macs have not been
-verified; use native Intel versions of Rust and Homebrew if trying this guide on
-one. Use a macOS version supported by your development tools; see
-[Homebrew's current requirements](https://docs.brew.sh/Installation#macos-requirements).
-Allow several GB of free space for the tools and compiled dependencies, even
-though the original game data is small.
+## Requirements
 
-## 1. Buy the original game
+- Your own copy of Insaniquarium Deluxe (the full Steam version works).
+- A Mac running a version of macOS supported by
+  [Homebrew](https://docs.brew.sh/Installation#macos-requirements).
+- Apple's Command Line Tools, Homebrew, Rust stable and libopenmpt (the music
+  library). The steps below walk through installing them.
+- Several GB of free disk space for the tools and the first build.
+
+The release build has been checked on Apple Silicon. Intel Macs have not been
+tested yet; if you try one, use the Intel versions of Rust and Homebrew.
+
+## Step by step (from a fresh Mac install)
+
+### 1. Buy the game
 
 1. Buy [Insaniquarium Deluxe on Steam](https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/)
    if you do not already own it. Get the full game, not the free demo.
 2. Install [Steam for Mac](https://store.steampowered.com/about/), open it, and sign
    in to the account that owns the game.
 
-Steam lists the original game as Windows-only. That is expected: the port uses
-its graphics, sounds, and other data, and supplies a native Mac executable.
+Steam lists the original game as Windows-only. That's expected! You only need
+its graphics, sounds and other data. The port itself runs natively on your Mac.
 
-## 2. Download the Windows game data on your Mac
+### 2. Download the game data
 
 These steps use the regular Steam app, with no separate SteamCMD installation.
 Pause other Steam downloads while the Windows platform override is active.
@@ -61,11 +67,10 @@ Pause other Steam downloads while the Windows platform override is active.
    @sSteamCmdForcePlatformType macos
    ```
 
-You can now close Steam. Keep your game data for the next step. This download
-still requires ownership of the game; the override only selects which operating
-system's files Steam downloads.
+You can now close Steam. This downloads the Windows files from the game you own;
+it does not make the original Windows executable run on macOS.
 
-## 3. Copy the data into a working folder
+### 3. Make a separate copy of the game
 
 The rest of this guide uses `~/Games/insaniquarium` (`~` means your home folder).
 Use a fresh folder for the initial setup. If you already have a port installation
@@ -91,13 +96,13 @@ local files**. In Finder, copy that entire **Insaniquarium Deluxe** folder into
 `~/Games/insaniquarium`. Do not accidentally nest one `Insaniquarium Deluxe`
 folder inside another.
 
-## 4. Install the build tools
+### 4. Install the build tools
 
 Run the following in **Terminal**, one block at a time. Wait for each installer
 to finish before continuing. If a command fails, resolve the error before moving
 on. These tools are only needed once; skip installers you have already completed.
 
-### Apple's Command Line Tools
+**Apple's Command Line Tools**
 
 ```sh
 xcode-select --install
@@ -106,7 +111,7 @@ xcode-select --install
 Accept the installation in the dialog. If Terminal says the tools are already
 installed, continue. You do not need the full Xcode application for this guide.
 
-### Homebrew and the music library
+**Homebrew and the music library**
 
 Install [Homebrew](https://brew.sh/) using its official command:
 
@@ -128,7 +133,7 @@ The Windows DLLs included with the project do not provide this library on macOS.
 Keep the Homebrew library installed after building: the game also needs it when
 it runs.
 
-### Rust
+**Rust**
 
 Install the latest stable Rust using the official
 [rustup installer](https://rust-lang.org/tools/install/):
@@ -147,12 +152,12 @@ cargo --version
 ```
 
 If Rust was already installed through rustup, run `rustup update stable` to update
-it. The current dependencies may require a newer compiler than older versions of
-the Windows instructions mention. On Apple Silicon, use a normal Terminal
+it. Use the latest stable version so it can build the project's dependencies.
+On Apple Silicon, use a normal Terminal
 session, rather than one configured to open using Rosetta, so Rust and Homebrew
 libraries use the same architecture.
 
-## 5. Download the port and build it
+### 5. Get this repository and build the game
 
 In **Terminal**, run:
 
@@ -164,8 +169,8 @@ export LIBRARY_PATH="$(brew --prefix libopenmpt)/lib${LIBRARY_PATH:+:$LIBRARY_PA
 cargo build --release --locked
 ```
 
-The `LIBRARY_PATH` line tells the linker where Homebrew installed the music
-library. It works with both the Apple Silicon and Intel Homebrew locations.
+The `LIBRARY_PATH` line tells Rust where to find the music library you installed
+with Homebrew. It handles both the Apple Silicon and Intel Homebrew locations.
 Run that line again before building in a new Terminal session.
 
 The first build downloads and compiles dependencies and can take several minutes.
@@ -190,7 +195,7 @@ Your folders should now look like this:
     └── target/release/winfish_rs
 ```
 
-## 6. Play
+### 6. Play
 
 In **Terminal**, run:
 
@@ -208,7 +213,7 @@ Saves and settings are in `~/Games/insaniquarium/Insaniquarium Deluxe/userdata`.
 Back up that folder to keep your progress. This copy is outside Steam's game
 folder; do not assume Steam Cloud backs it up.
 
-### Optional: make a double-click launcher
+## Additional steps for a double-click launcher (optional)
 
 Paste this entire block into **Terminal**:
 
@@ -227,6 +232,24 @@ and then the game. Keep the launcher beside the two folders above; to place a
 shortcut on your Desktop, create a Finder alias to it. You do not need to rebuild
 every time you play.
 
+## HD art (optional)
+
+The steps above use the original art. The repository's `Play HD.bat` and
+`upscale_art.bat` files are Windows scripts; they do not run on macOS. Generating
+HD art on a Mac has not been tested for this guide.
+
+If you already generated HD assets from your own copy using the
+[HD instructions](../README.md#additional-steps-if-using-the-hd-art), copy the
+resulting `hd` folder inside your working `Insaniquarium Deluxe` folder. Enable
+them by adding `--hd` to the launch command:
+
+```sh
+cd "$HOME/Games/insaniquarium"
+./Insaniquarium-Deluxe-Revibed/target/release/winfish_rs "./Insaniquarium Deluxe" --hd
+```
+
+Without `--hd`, the game uses the original art even when the `hd` folder exists.
+
 ## Troubleshooting
 
 | Problem | What to do |
@@ -243,21 +266,3 @@ every time you play.
 | Game cannot find its data or shows missing graphics | Check the directory layout in step 5 and pass the quoted game-data path from step 6. It must contain `images` and `properties` directly. |
 | Launcher says `No such file or directory` | Complete the release build and keep the launcher beside both folders. |
 | F1 changes screen brightness | Use Fn–F1 (or the Globe key with F1) to open the debug menu. |
-
-## Optional HD graphics
-
-The steps above use the original graphics. The repository's `Play HD.bat` and
-`upscale_art.bat` files are Windows scripts; they do not run on macOS. Generating
-HD assets on a Mac is outside this guide's verified setup.
-
-If you already generated HD assets from your own copy using the
-[HD instructions](../README.md#additional-steps-if-using-the-hd-art), copy the
-resulting `hd` folder inside your working `Insaniquarium Deluxe` folder. Enable
-them by adding `--hd` to the launch command:
-
-```sh
-cd "$HOME/Games/insaniquarium"
-./Insaniquarium-Deluxe-Revibed/target/release/winfish_rs "./Insaniquarium Deluxe" --hd
-```
-
-Without `--hd`, the game uses the original art even when the `hd` folder exists.
