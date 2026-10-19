@@ -302,7 +302,7 @@ fn aliens_present(g: &mut G, this: Ptr) -> bool {
 /// `Update()`: swim toward the cursor in follow mode (`DAT_005e89d0`, small live fish);
 /// else chase food (vfunction 83), follow pet 12 while aliens attack, or run the current swim
 /// mode; then the shared timers, bubbles when rising fast, the tank bounds, the animation
-/// (vfunction 90) and the move.
+/// (vfunction 90) and the move. Kid Mode: without pet 12, fish swim away from a near alien.
 pub fn vfunction23(g: &mut G, this: Ptr) {
     let app = g.go(this).offset_0x0;
     let board = g.wfa(app).offset_0x4;
@@ -317,7 +317,7 @@ pub fn vfunction23(g: &mut G, this: Ptr) {
         let pet12 = g.board(board).field_0xb8[12];
         if aliens_present(g, this) && pet12 != 0 && g.fish(this).field_0xd5 {
             follow_pet(g, this, board);
-        } else {
+        } else if !(crate::game::profile::kid_mode(g, app) && aliens_present(g, this) && flee_aliens(g, this, board)) {
             swim_mode(g, this, rng);
         }
     }
@@ -354,6 +354,57 @@ fn follow_cursor(g: &mut G, this: Ptr) {
     } else if y < (ty - 5) as f64 {
         f.field_0xc = y + 3.0;
     }
+}
+
+/// Kid Mode (not in the original): steers away from the nearest alien within 260 pixels,
+/// sliding along a wall instead of pinning itself against it. False when none is that
+/// close, leaving the fish to its swim mode.
+fn flee_aliens(g: &mut G, this: Ptr, board: Ptr) -> bool {
+    use crate::game::board_level::vec_index;
+    let (fx, fy) = (g.fish(this).field_0x4 + 40.0, g.fish(this).field_0xc + 40.0);
+    let mut near: Option<(f64, f64, f64)> = None;
+    for off in [0xb8, 0xf4] {
+        for a in g.board(board).offset_0xc[vec_index(off)].clone() {
+            if !g.is_live(a) {
+                continue;
+            }
+            let wc = g.wc(a);
+            let ax = (wc.offset_0x2c + wc.offset_0x34 / 2) as f64;
+            let ay = (wc.offset_0x30 + wc.offset_0x38 / 2) as f64;
+            let dist = ((fx - ax).powi(2) + (fy - ay).powi(2)).sqrt();
+            if near.map_or(true, |n| dist < n.2) {
+                near = Some((ax, ay, dist));
+            }
+        }
+    }
+    let Some((ax, ay, dist)) = near else { return false };
+    if 260.0 < dist {
+        return false;
+    }
+    let (mut dx, mut dy) = if dist < 1.0 { (1.0, 0.0) } else { ((fx - ax) / dist, (fy - ay) / dist) };
+    let f = g.fish(this);
+    let (left, right, top, bottom) = (f.field_0x40 as f64, f.field_0x48 as f64, f.field_0x44 as f64, f.field_0x3c as f64);
+    let (x, y) = (f.field_0x4, f.field_0xc);
+    if (dx < 0.0 && x <= left + 10.0) || (0.0 < dx && right - 10.0 <= x) {
+        dx = 0.0;
+        dy = if dy.abs() < 0.2 { if y - top < bottom - y { 1.0 } else { -1.0 } } else { dy.signum() };
+    }
+    if (dy < 0.0 && y <= top + 10.0) || (0.0 < dy && bottom - 10.0 <= y) {
+        dy = 0.0;
+        if dx.abs() < 0.2 {
+            dx = if x - left < right - x { 1.0 } else { -1.0 };
+        } else {
+            dx = dx.signum();
+        }
+    }
+    f.offset_0x14 = (f.offset_0x14 + dx * 0.8).clamp(-5.0, 5.0);
+    f.field_0x1c = (f.field_0x1c + dy * 0.6).clamp(-4.0, 4.0);
+    let my = g.wc(this).offset_0x30;
+    let f = g.fish(this);
+    if my <= f.field_0x44 && f.field_0x1c < 0.0 {
+        f.field_0x1c = 0.0;
+    }
+    true
 }
 
 /// Swimming toward pet 12 (the one that protects fish) while aliens attack.

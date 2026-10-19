@@ -1002,8 +1002,10 @@ pub fn FUN_00552380(g: &mut G, this: Ptr, param_1: bool, param_2: bool) {
     }
     let resume_level = FUN_0054b2a0(g, this);
     let mode = g.wfa(this).offset_0x150;
-    // (3 is the level bound above, still in EDX: more than three levels finished.)
-    if !resume_level && mode != 5 && 3 < p.field_0x18 && (mode != 0 || p.field_0x1c != 5) {
+    // (3 is the level bound above, still in EDX: more than three levels finished.) Kid Mode
+    // brings up to five pets along without asking.
+    let auto_pets = if crate::game::profile::kid_mode(g, this) { 5 } else { 3 };
+    if !resume_level && mode != 5 && auto_pets < p.field_0x18 && (mode != 0 || p.field_0x1c != 5) {
         crate::game::pets_screen::FUN_0054c2d0(g, this);
         return;
     }
@@ -1334,10 +1336,17 @@ pub fn FUN_0054ba40(g: &mut G, this: Ptr) -> bool {
     }
     let o = g.options_dialog(d).clone();
     let full = vcall!(g, o.offset_0xc, checkbox.vfunction72);
-    let is3d = vcall!(g, o.offset_0x14, checkbox.vfunction72);
-    crate::sexy::sexy_app_base::vfunction69(g, this, !full, is3d, false);
+    // The port has no Hardware Acceleration box: 3D stays on.
+    crate::sexy::sexy_app_base::vfunction69(g, this, !full, true, false);
     let cursors = vcall!(g, o.offset_0x10, checkbox.vfunction72);
     crate::sexy::sexy_app_base::FUN_004891d0(g, this, cursors);
+    // Kid Mode belongs to the profile: set its flag and save it (from the main menu only).
+    let kid = vcall!(g, o.kid_mode, checkbox.vfunction72);
+    let profile = g.wfa(this).offset_0x18c;
+    if profile != NULL && !g.w(o.kid_mode).offset_0x2 && ((g.profile(profile).field_0x84 >> crate::game::profile::KID_MODE_FLAG) & 1 != 0) != kid {
+        crate::game::profile::FUN_005014d0(g.profile(profile), crate::game::profile::KID_MODE_FLAG, kid);
+        crate::game::profile::FUN_00514730(g, profile);
+    }
     vfunction78(g, this, 1);
     crate::sexy::sexy_app_base::FUN_00479f90(g, this, true);
     let board = g.wfa(this).offset_0x4;

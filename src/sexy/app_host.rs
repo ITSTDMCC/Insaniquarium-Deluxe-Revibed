@@ -127,6 +127,9 @@ pub fn sexy_app_init(g: &mut G, app: Ptr) {
     g.app_obj(app).sa.field_0x6d = FUN_00487170(g, "DontUpdate", dont);
     g.sab(app).field_0x390 = b"1.1".to_vec();
     g.sab(app).d3d_tester = true;
+    // Always the original's 3D look (shadows, light rays, decorations, smooth stretching);
+    // the Options dialog no longer offers to turn it off.
+    g.sab(app).ddinterface_is_3d = true;
     let (w, h) = (640, 480);
     g.sab(app).field_0xb8 = w;
     g.sab(app).field_0xbc = h;
