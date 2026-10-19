@@ -1342,10 +1342,10 @@ pub fn FUN_0054ba40(g: &mut G, this: Ptr) -> bool {
     crate::sexy::sexy_app_base::vfunction69(g, this, !full, is3d, false);
     let cursors = vcall!(g, o.offset_0x10, checkbox.vfunction72);
     crate::sexy::sexy_app_base::FUN_004891d0(g, this, cursors);
-    // Kid Mode belongs to the profile: set its flag and save it.
+    // Kid Mode belongs to the profile: set its flag and save it (from the main menu only).
     let kid = vcall!(g, o.kid_mode, checkbox.vfunction72);
     let profile = g.wfa(this).offset_0x18c;
-    if profile != NULL && ((g.profile(profile).field_0x84 >> crate::game::profile::KID_MODE_FLAG) & 1 != 0) != kid {
+    if profile != NULL && !g.w(o.kid_mode).offset_0x2 && ((g.profile(profile).field_0x84 >> crate::game::profile::KID_MODE_FLAG) & 1 != 0) != kid {
         crate::game::profile::FUN_005014d0(g.profile(profile), crate::game::profile::KID_MODE_FLAG, kid);
         crate::game::profile::FUN_00514730(g, profile);
     }

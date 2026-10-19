@@ -36,7 +36,7 @@ pub struct OptionsDialog_data {
     /// +0x18c opened from the main menu (no Back to Main Menu).
     pub field_0x2c: bool,
     /// The Kid Mode checkbox (id 10; not in the original), on its own row under Hardware
-    /// Acceleration.
+    /// Acceleration; disabled unless opened from the main menu.
     pub kid_mode: Ptr,
 }
 
@@ -119,6 +119,10 @@ pub fn FUN_005349d0(g: &mut G, param_1: Ptr, param_2: bool) -> Ptr {
     let kid = profile != NULL && (g.profile(profile).field_0x84 >> crate::game::profile::KID_MODE_FLAG) & 1 != 0;
     let c = FUN_00500b70(g, 10, this, kid);
     g.options_dialog(this).kid_mode = c;
+    // Kid Mode only changes from the main menu, never in the middle of a game.
+    if !param_2 {
+        vcall!(g, c, w.vfunction38, true);
+    }
     let d = g.options_dialog(this).clone();
     if d.field_0x2c {
         vcall!(g, d.offset_0x28, w.vfunction32, false);
@@ -290,7 +294,8 @@ pub fn vfunction27(g: &mut G, this: Ptr, gfx: &mut Graphics) {
     FUN_00455cf0(gfx, g, b"Sound Fx", 0x30, 0x6e);
     let d = g.options_dialog(this).clone();
     let (mx, my) = (g.wc(this).offset_0x2c, g.wc(this).offset_0x30);
-    for (p, s) in [(d.offset_0xc, &b"Fullscreen"[..]), (d.offset_0x10, b"Custom Cursors"), (d.offset_0x14, b"Hardware Acceleration"), (d.kid_mode, b"Kid Mode")] {
+    let kid: &[u8] = if g.w(d.kid_mode).offset_0x2 { b"Kid Mode (main menu only)" } else { b"Kid Mode" };
+    for (p, s) in [(d.offset_0xc, &b"Fullscreen"[..]), (d.offset_0x10, b"Custom Cursors"), (d.offset_0x14, b"Hardware Acceleration"), (d.kid_mode, kid)] {
         let (x, y) = (g.wc(p).offset_0x2c - mx + 0x2b, g.wc(p).offset_0x30 - my + 0x18);
         FUN_00455cf0(gfx, g, s, x, y);
     }
