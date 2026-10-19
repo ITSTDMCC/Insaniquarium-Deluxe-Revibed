@@ -93,9 +93,11 @@ impl Plugin for WinFishPlugin {
 }
 
 /// `SexyAppBase::SwitchScreenMode` (replaced) on the window: the game's `mIsWindowed`
-/// (Options' Fullscreen checkbox, the saved `ScreenMode`) picks a normal window or exclusive
-/// full screen on the current monitor. The original also switched the display to 640x480;
-/// here the monitor keeps its mode and the picture is scaled up (`fit_screen`).
+/// (Options' Fullscreen checkbox, the saved `ScreenMode`) picks a normal window or a
+/// borderless full-screen window on the current monitor. The original also switched the
+/// display to 640x480; here the monitor keeps its mode and the picture is scaled up
+/// (`fit_screen`). Exclusive full screen would gain nothing at the monitor's own mode, and
+/// on Windows switching into it could leave the game frozen.
 fn apply_screen_mode(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows: Query<&mut Window>) {
     let app = g.globals.DAT_005eb6a4;
     if !host.booted || app == NULL {
@@ -109,7 +111,7 @@ fn apply_screen_mode(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows:
     window.mode = if windowed {
         bevy::window::WindowMode::Windowed
     } else {
-        bevy::window::WindowMode::Fullscreen(bevy::window::MonitorSelection::Current, bevy::window::VideoModeSelection::Current)
+        bevy::window::WindowMode::BorderlessFullscreen(bevy::window::MonitorSelection::Current)
     };
     info!("screen mode: {}", if windowed { "windowed" } else { "full screen" });
     host.applied_windowed = Some(windowed);
