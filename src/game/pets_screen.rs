@@ -525,7 +525,10 @@ pub fn vfunction3(g: &mut G, this: Ptr, param_1: i32) {
                 g.profile(profile).field_0x5a[i] = chosen;
             }
         }
-        if 2 < d.ext_0x124 || g.wfa(app).offset_0x150 == 5 {
+        // Kid Mode wants as many pets as may come along (up to five) before asking.
+        let kid = crate::game::profile::kid_mode(g, app);
+        let need = if kid { d.ext_0x130 } else { 3 };
+        if need <= d.ext_0x124 || g.wfa(app).offset_0x150 == 5 {
             FUN_0054af90(g, app);
             if changed {
                 crate::game::store::FUN_0054aff0(g, app);
@@ -539,7 +542,10 @@ pub fn vfunction3(g: &mut G, this: Ptr, param_1: i32) {
             crate::game::board_update::FUN_0053db80(g, board, false);
             return;
         }
-        let lines: &[u8] = if d.ext_0x130 < 4 {
+        let kid_lines = format!("Are you sure you want to continue to the next level without selecting {need} pets?").into_bytes();
+        let lines: &[u8] = if kid {
+            &kid_lines
+        } else if d.ext_0x130 < 4 {
             b"Are you sure you want to continue to the next level without selecting 3 pets?"
         } else {
             b"Are you sure you want to continue to the next level without selecting at least 3 pets?"
