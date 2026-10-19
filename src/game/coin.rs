@@ -415,17 +415,20 @@ pub fn vfunction23(g: &mut G, this: Ptr) {
         move_to_pos(g, this);
         return;
     }
-    // Falling.
+    // Falling. Kid Mode (not in the original): money falls at 66% speed and lies on the floor
+    // twice as long (bombs keep their speed and fuse).
     let pet10 = g.board(board).field_0xb8[10] != 0;
     let virt = g.board(board).field_0x219;
+    let kid = kind != 0x11 && crate::game::profile::kid_mode(g, app);
     let d = g.coin(this);
-    d.offset_0xc = if pet10 {
-        d.offset_0xc + 0.8
+    let step = if pet10 {
+        0.8
     } else if virt {
-        d.offset_0x34 + d.offset_0xc
+        d.offset_0x34
     } else {
-        d.offset_0xc + 1.5
+        1.5
     };
+    d.offset_0xc += if kid { step * 0.66 } else { step };
     if 370.0 <= d.offset_0xc {
         d.offset_0xc = 370.0;
         if g.board(board).field_0x219 {
@@ -441,6 +444,7 @@ pub fn vfunction23(g: &mut G, this: Ptr) {
         } else {
             0x14
         };
+        let lim = if kid { lim * 2 } else { lim };
         if lim <= g.coin(this).offset_0x48 {
             if g.coin(this).offset_0x40 == 0x11 {
                 vfunction76(g, this);

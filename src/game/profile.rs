@@ -514,7 +514,8 @@ pub const KID_MODE_FLAG: u8 = 16;
 
 /// Whether the current profile plays in Kid Mode (never in the screensaver). While on,
 /// yellow (hungry) fish starve three times slower, up to five pets come along into each
-/// tank, and fish swim away from aliens.
+/// tank, fish swim away from aliens, and money falls at 66% speed and lies on the floor
+/// twice as long.
 pub fn kid_mode(g: &mut G, app: Ptr) -> bool {
     if app == NULL || g.wfa(app).offset_0x154 {
         return false;
