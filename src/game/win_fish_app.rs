@@ -1321,9 +1321,7 @@ pub fn FUN_0054c620(g: &mut G, this: Ptr, param_1: bool) {
     FUN_0054b4c0(g, this);
     let d = crate::game::options_dialog::FUN_005349d0(g, this, param_1);
     let h = vcall!(g, d, dlg.vfunction74, 0x15c);
-    // The port's Kid Mode row makes the dialog taller: keep it on the 480-high screen.
-    let y = 0x1a.min(0x1e0 - h).max(0);
-    vcall!(g, d, w.vfunction41, 0x8f, y, 0x15c, h);
+    vcall!(g, d, w.vfunction41, 0x8f, 0x1a, 0x15c, h);
     crate::sexy::sexy_app_base::vfunction76(g, this, 1, d);
 }
 
@@ -1338,8 +1336,8 @@ pub fn FUN_0054ba40(g: &mut G, this: Ptr) -> bool {
     }
     let o = g.options_dialog(d).clone();
     let full = vcall!(g, o.offset_0xc, checkbox.vfunction72);
-    let is3d = vcall!(g, o.offset_0x14, checkbox.vfunction72);
-    crate::sexy::sexy_app_base::vfunction69(g, this, !full, is3d, false);
+    // The port has no Hardware Acceleration box: 3D stays on.
+    crate::sexy::sexy_app_base::vfunction69(g, this, !full, true, false);
     let cursors = vcall!(g, o.offset_0x10, checkbox.vfunction72);
     crate::sexy::sexy_app_base::FUN_004891d0(g, this, cursors);
     // Kid Mode belongs to the profile: set its flag and save it (from the main menu only).

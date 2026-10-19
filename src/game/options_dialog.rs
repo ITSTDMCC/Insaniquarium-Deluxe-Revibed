@@ -1,5 +1,6 @@
 //! `Sexy::OptionsDialog`: the Options dialog (dialog id 1): music and sound-effect sliders,
-//! the Fullscreen / Custom Cursors / Hardware Acceleration checkboxes, and the Register,
+//! the Fullscreen / Custom Cursors / Hardware Acceleration checkboxes (the port hides the
+//! last and adds Kid Mode in its place), and the Register,
 //! Help, web link, Check Updates and Back to Main Menu buttons. A MoneyDialog with a
 //! SliderListener part at +0x158 and a CheckboxListener part at +0x15c; `OptionsDialog_data`
 //! at +0x160 (the object is 400 bytes; the database's 44-byte type stops before the
@@ -35,8 +36,9 @@ pub struct OptionsDialog_data {
     pub offset_0x28: Ptr,
     /// +0x18c opened from the main menu (no Back to Main Menu).
     pub field_0x2c: bool,
-    /// The Kid Mode checkbox (id 10; not in the original), on its own row under Hardware
-    /// Acceleration; disabled unless opened from the main menu.
+    /// The Kid Mode checkbox (id 10; not in the original), in Hardware Acceleration's place
+    /// (the port hides that one: it always draws in 3D); disabled unless opened from the main
+    /// menu.
     pub kid_mode: Ptr,
 }
 
@@ -123,6 +125,8 @@ pub fn FUN_005349d0(g: &mut G, param_1: Ptr, param_2: bool) -> Ptr {
     if !param_2 {
         vcall!(g, c, w.vfunction38, true);
     }
+    // The port always draws with the original's 3D extras: no Hardware Acceleration box.
+    vcall!(g, d_hw(g, this), w.vfunction32, false);
     let d = g.options_dialog(this).clone();
     if d.field_0x2c {
         vcall!(g, d.offset_0x28, w.vfunction32, false);
@@ -162,18 +166,22 @@ pub fn deleting_destructor(g: &mut G, this: Ptr, param_1: u8) -> Ptr {
     this
 }
 
+fn d_hw(g: &mut G, this: Ptr) -> Ptr {
+    g.options_dialog(this).offset_0x14
+}
+
 fn visible(g: &mut G, p: Ptr) -> bool {
     g.w(p).offset_0x0
 }
 
 /// port: 00530e60 Sexy::OptionsDialog::vfunction74
 /// `GetPreferredHeight(int)`: 0x148 (0x16a with Back to Main Menu), plus a row for
-/// Register + Check Updates and one for the web link. The port adds a row for Kid Mode.
+/// Register + Check Updates and one for the web link.
 pub fn vfunction74(g: &mut G, this: Ptr, _width: i32) -> i32 {
     let d = g.options_dialog(this).clone();
-    let mut h = 0x16a + 0x2c;
+    let mut h = 0x16a;
     if !visible(g, d.offset_0x28) {
-        h = 0x148 + 0x2c;
+        h = 0x148;
     }
     if visible(g, d.offset_0x18) && visible(g, d.offset_0x20) {
         h += 0x22;
@@ -253,7 +261,7 @@ pub fn vfunction41(g: &mut G, this: Ptr, param_1: i32, param_2: i32, param_3: i3
     vcall!(g, d.offset_0xc, w.vfunction41, mx + 0x21, my + 0x80, 0x2e, 0x2d);
     vcall!(g, d.offset_0x10, w.vfunction41, mx + 0xa1, my + 0x80, 0x2e, 0x2d);
     vcall!(g, d.offset_0x14, w.vfunction41, mx + 0x21, my + 0xac, 0x2e, 0x2d);
-    vcall!(g, d.kid_mode, w.vfunction41, mx + 0x21, my + 0xd8, 0x2e, 0x2d);
+    vcall!(g, d.kid_mode, w.vfunction41, mx + 0x21, my + 0xac, 0x2e, 0x2d);
 }
 
 /// port: 00531270 Sexy::OptionsDialog::vfunction1
@@ -295,7 +303,7 @@ pub fn vfunction27(g: &mut G, this: Ptr, gfx: &mut Graphics) {
     let d = g.options_dialog(this).clone();
     let (mx, my) = (g.wc(this).offset_0x2c, g.wc(this).offset_0x30);
     let kid: &[u8] = if g.w(d.kid_mode).offset_0x2 { b"Kid Mode (main menu only)" } else { b"Kid Mode" };
-    for (p, s) in [(d.offset_0xc, &b"Fullscreen"[..]), (d.offset_0x10, b"Custom Cursors"), (d.offset_0x14, b"Hardware Acceleration"), (d.kid_mode, kid)] {
+    for (p, s) in [(d.offset_0xc, &b"Fullscreen"[..]), (d.offset_0x10, b"Custom Cursors"), (d.kid_mode, kid)] {
         let (x, y) = (g.wc(p).offset_0x2c - mx + 0x2b, g.wc(p).offset_0x30 - my + 0x18);
         FUN_00455cf0(gfx, g, s, x, y);
     }
