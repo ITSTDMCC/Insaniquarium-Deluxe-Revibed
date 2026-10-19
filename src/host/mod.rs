@@ -62,6 +62,10 @@ pub struct HostState {
     pub applied_windowed: Option<bool>,
     /// The saved window size and position were given to the window (once, after boot).
     pub window_restored: bool,
+    /// The saved window size and position, held back while the game starts in full screen
+    /// (moving or resizing a full-screen window pulls it off the screen) and given to the
+    /// window when it first turns windowed.
+    pub window_pending: Option<(Option<(u32, u32)>, Option<IVec2>)>,
     /// The window's last size and position, and when they last changed (saved once settled).
     pub window_seen: Option<(u32, u32, i32, i32)>,
     pub window_changed: Option<std::time::Instant>,
@@ -109,6 +113,9 @@ fn apply_screen_mode(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows:
     }
     let Ok(mut window) = windows.single_mut() else { return };
     window.mode = if windowed {
+        if let Some((size, pos)) = host.window_pending.take() {
+            set_window_geometry(&mut window, size, pos);
+        }
         bevy::window::WindowMode::Windowed
     } else {
         bevy::window::WindowMode::BorderlessFullscreen(bevy::window::MonitorSelection::Current)
@@ -119,22 +126,37 @@ fn apply_screen_mode(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows:
 
 /// (Port addition) Gives the window the size and position it had when the game last ran
 /// (`PortWindow*` in the saved registry), once, after boot. Full screen is the game's own
-/// saved `ScreenMode`, applied by `apply_screen_mode`.
+/// saved `ScreenMode`, applied by `apply_screen_mode`; a game starting in full screen gets
+/// them when it turns windowed.
 fn restore_window(mut g: ResMut<G>, mut host: ResMut<HostState>, mut windows: Query<&mut Window>) {
     if !host.booted || host.window_restored {
         return;
     }
     host.window_restored = true;
     let read = |g: &mut G, k: &str| crate::sexy::app_host::registry_read_integer(g, k);
-    let Ok(mut window) = windows.single_mut() else { return };
-    if let (Some(w), Some(h)) = (read(&mut g, "PortWindowWidth"), read(&mut g, "PortWindowHeight"))
-        && w >= 320
-        && h >= 240
-    {
-        window.resolution.set_physical_resolution(w as u32, h as u32);
+    let size = match (read(&mut g, "PortWindowWidth"), read(&mut g, "PortWindowHeight")) {
+        (Some(w), Some(h)) if w >= 320 && h >= 240 => Some((w as u32, h as u32)),
+        _ => None,
+    };
+    let pos = match (read(&mut g, "PortWindowX"), read(&mut g, "PortWindowY")) {
+        (Some(x), Some(y)) => Some(IVec2::new(x, y)),
+        _ => None,
+    };
+    let app = g.globals.DAT_005eb6a4;
+    if app != NULL && !g.sab(app).field_0x33b {
+        host.window_pending = Some((size, pos));
+        return;
     }
-    if let (Some(x), Some(y)) = (read(&mut g, "PortWindowX"), read(&mut g, "PortWindowY")) {
-        window.position = bevy::window::WindowPosition::At(IVec2::new(x, y));
+    let Ok(mut window) = windows.single_mut() else { return };
+    set_window_geometry(&mut window, size, pos);
+}
+
+fn set_window_geometry(window: &mut Window, size: Option<(u32, u32)>, pos: Option<IVec2>) {
+    if let Some((w, h)) = size {
+        window.resolution.set_physical_resolution(w, h);
+    }
+    if let Some(p) = pos {
+        window.position = bevy::window::WindowPosition::At(p);
     }
 }
 
