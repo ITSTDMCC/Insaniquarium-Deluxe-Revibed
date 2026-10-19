@@ -32,6 +32,8 @@ https://store.steampowered.com/app/3320/Insaniquarium_Deluxe/
 ## New Features/QOL improvements:
 - Middle click toggles "hold to collect": While it's on, holding the left mouse button collects any money under the cursor. A notice shows ON or OFF. The middle button no longer acts as a click in the game. (my index finger hurts sometimes from the clicking. Off by default)
 
+- Custom Cursors works: with it ticked in Options, the game's own pointer, hand and dragging cursors are drawn (scaled with the window), as in the original. With it off, the matching Windows cursor shows (arrow, hand, text).
+
 - Hardware Acceleration is always on: the game always uses the original's 3D look (shadows, light rays, tank decorations, smooth stretching), so the option is gone from Options.
 
 - Kid Mode: a per-profile checkbox in Options (changeable from the main menu only) that makes the game gentler for younger players. Once a fish turns yellow it starves three times slower, up to 5 pets come along into each tank (instead of 3), fish swim away from nearby aliens so there's time to fight back, and money falls at 66% speed and stays on the floor twice as long. Off by default, saved with the profile.

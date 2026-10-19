@@ -9,6 +9,7 @@
 //! frame time as the clock.
 
 pub mod audio;
+pub mod cursor;
 pub mod debug;
 pub mod music;
 pub mod openmpt;
@@ -88,11 +89,11 @@ impl Plugin for WinFishPlugin {
             .insert_resource(ClearColor(bevy::color::Color::BLACK))
             .init_resource::<HostState>()
             .init_resource::<debug::DebugMenu>()
-            .add_systems(Startup, (setup_screen, start_vfs_load, debug::setup))
+            .add_systems(Startup, (setup_screen, start_vfs_load, debug::setup, cursor::setup))
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
             .add_plugins(upscale::plugin)
-            .add_systems(Update, (poll_vfs_load, close_requested, focus, debug::keys, input, debug::auto_collect, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, restore_window, apply_screen_mode, remember_window, fit_screen, debug::overlay).chain());
+            .add_systems(Update, (poll_vfs_load, close_requested, focus, debug::keys, input, debug::auto_collect, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, restore_window, apply_screen_mode, remember_window, fit_screen, cursor::update, debug::overlay).chain());
     }
 }
 
