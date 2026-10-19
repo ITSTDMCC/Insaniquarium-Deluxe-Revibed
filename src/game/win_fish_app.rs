@@ -1002,8 +1002,10 @@ pub fn FUN_00552380(g: &mut G, this: Ptr, param_1: bool, param_2: bool) {
     }
     let resume_level = FUN_0054b2a0(g, this);
     let mode = g.wfa(this).offset_0x150;
-    // (3 is the level bound above, still in EDX: more than three levels finished.)
-    if !resume_level && mode != 5 && 3 < p.field_0x18 && (mode != 0 || p.field_0x1c != 5) {
+    // (3 is the level bound above, still in EDX: more than three levels finished.) Kid Mode
+    // brings up to five pets along without asking.
+    let auto_pets = if crate::game::profile::kid_mode(g, this) { 5 } else { 3 };
+    if !resume_level && mode != 5 && auto_pets < p.field_0x18 && (mode != 0 || p.field_0x1c != 5) {
         crate::game::pets_screen::FUN_0054c2d0(g, this);
         return;
     }
@@ -1319,7 +1321,9 @@ pub fn FUN_0054c620(g: &mut G, this: Ptr, param_1: bool) {
     FUN_0054b4c0(g, this);
     let d = crate::game::options_dialog::FUN_005349d0(g, this, param_1);
     let h = vcall!(g, d, dlg.vfunction74, 0x15c);
-    vcall!(g, d, w.vfunction41, 0x8f, 0x1a, 0x15c, h);
+    // The port's Kid Mode row makes the dialog taller: keep it on the 480-high screen.
+    let y = 0x1a.min(0x1e0 - h).max(0);
+    vcall!(g, d, w.vfunction41, 0x8f, y, 0x15c, h);
     crate::sexy::sexy_app_base::vfunction76(g, this, 1, d);
 }
 
@@ -1338,6 +1342,13 @@ pub fn FUN_0054ba40(g: &mut G, this: Ptr) -> bool {
     crate::sexy::sexy_app_base::vfunction69(g, this, !full, is3d, false);
     let cursors = vcall!(g, o.offset_0x10, checkbox.vfunction72);
     crate::sexy::sexy_app_base::FUN_004891d0(g, this, cursors);
+    // Kid Mode belongs to the profile: set its flag and save it.
+    let kid = vcall!(g, o.kid_mode, checkbox.vfunction72);
+    let profile = g.wfa(this).offset_0x18c;
+    if profile != NULL && ((g.profile(profile).field_0x84 >> crate::game::profile::KID_MODE_FLAG) & 1 != 0) != kid {
+        crate::game::profile::FUN_005014d0(g.profile(profile), crate::game::profile::KID_MODE_FLAG, kid);
+        crate::game::profile::FUN_00514730(g, profile);
+    }
     vfunction78(g, this, 1);
     crate::sexy::sexy_app_base::FUN_00479f90(g, this, true);
     let board = g.wfa(this).offset_0x4;

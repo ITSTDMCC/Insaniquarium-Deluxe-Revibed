@@ -526,7 +526,9 @@ pub fn FUN_005498b0(g: &mut G, this: Ptr) {
         n -= 1;
     }
     let profile = g.wfa(app).offset_0x18c;
-    let late = 3 < g.profile(profile).field_0x18;
+    // Kid Mode: every pet comes along up to five (the pets screen chooses past that).
+    let auto_pets = if crate::game::profile::kid_mode(g, app) { 5 } else { 3 };
+    let late = auto_pets < g.profile(profile).field_0x18;
     let mode = g.wfa(app).offset_0x150;
     if (g.profile(profile).field_0x59 && (mode == 1 || mode == 4)) || late {
         for i in 0..0x18 {

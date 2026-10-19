@@ -507,3 +507,18 @@ pub fn FUN_005013d0(g: &mut G, this: Ptr) {
     p.field_0x54 = 0;
     p.field_0x58 = false;
 }
+
+/// Kid Mode (not in the original): profile flag bit 16 of +0x84, saved with the other flags
+/// in `user%d.dat` (the original game ignores the bit). Set from the Options dialog.
+pub const KID_MODE_FLAG: u8 = 16;
+
+/// Whether the current profile plays in Kid Mode (never in the screensaver). While on,
+/// yellow (hungry) fish starve three times slower, up to five pets come along into each
+/// tank, and fish swim away from aliens.
+pub fn kid_mode(g: &mut G, app: Ptr) -> bool {
+    if app == NULL || g.wfa(app).offset_0x154 {
+        return false;
+    }
+    let profile = g.wfa(app).offset_0x18c;
+    profile != NULL && (g.profile(profile).field_0x84 >> KID_MODE_FLAG) & 1 != 0
+}

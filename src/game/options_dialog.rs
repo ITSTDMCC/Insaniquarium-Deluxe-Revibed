@@ -35,6 +35,9 @@ pub struct OptionsDialog_data {
     pub offset_0x28: Ptr,
     /// +0x18c opened from the main menu (no Back to Main Menu).
     pub field_0x2c: bool,
+    /// The Kid Mode checkbox (id 10; not in the original), on its own row under Hardware
+    /// Acceleration.
+    pub kid_mode: Ptr,
 }
 
 impl G {
@@ -112,6 +115,10 @@ pub fn FUN_005349d0(g: &mut G, param_1: Ptr, param_2: bool) -> Ptr {
     let is3d = crate::sexy::sexy_app_base::dtor_MemoryImage__00489a20(g, param_1);
     let c = FUN_00500b70(g, 9, this, is3d);
     g.options_dialog(this).offset_0x14 = c;
+    let profile = g.wfa(param_1).offset_0x18c;
+    let kid = profile != NULL && (g.profile(profile).field_0x84 >> crate::game::profile::KID_MODE_FLAG) & 1 != 0;
+    let c = FUN_00500b70(g, 10, this, kid);
+    g.options_dialog(this).kid_mode = c;
     let d = g.options_dialog(this).clone();
     if d.field_0x2c {
         vcall!(g, d.offset_0x28, w.vfunction32, false);
@@ -133,7 +140,7 @@ pub fn dtor_OptionsDialog(g: &mut G, this: Ptr) {
     let d = g.options_dialog(this).clone();
     for p in [
         d.offset_0x18, d.offset_0x20, d.offset_0x24, d.offset_0x4, d.offset_0x8, d.offset_0xc, d.offset_0x10, d.offset_0x14, d.offset_0x1c,
-        d.offset_0x28,
+        d.offset_0x28, d.kid_mode,
     ] {
         if p != NULL {
             vcall!(g, p, w.vfunction1, 1);
@@ -157,12 +164,12 @@ fn visible(g: &mut G, p: Ptr) -> bool {
 
 /// port: 00530e60 Sexy::OptionsDialog::vfunction74
 /// `GetPreferredHeight(int)`: 0x148 (0x16a with Back to Main Menu), plus a row for
-/// Register + Check Updates and one for the web link.
+/// Register + Check Updates and one for the web link. The port adds a row for Kid Mode.
 pub fn vfunction74(g: &mut G, this: Ptr, _width: i32) -> i32 {
     let d = g.options_dialog(this).clone();
-    let mut h = 0x16a;
+    let mut h = 0x16a + 0x2c;
     if !visible(g, d.offset_0x28) {
-        h = 0x148;
+        h = 0x148 + 0x2c;
     }
     if visible(g, d.offset_0x18) && visible(g, d.offset_0x20) {
         h += 0x22;
@@ -180,7 +187,7 @@ pub fn vfunction21(g: &mut G, this: Ptr, param_1: Ptr) {
     let d = g.options_dialog(this).clone();
     for p in [
         d.offset_0x18, d.offset_0x20, d.offset_0x1c, d.offset_0x4, d.offset_0x8, d.offset_0x10, d.offset_0x14, d.offset_0xc, d.offset_0x24,
-        d.offset_0x28,
+        d.offset_0x28, d.kid_mode,
     ] {
         vcall!(g, param_1, w.vfunction4, p);
     }
@@ -193,7 +200,7 @@ pub fn vfunction22(g: &mut G, this: Ptr, param_1: Ptr) {
     let d = g.options_dialog(this).clone();
     for p in [
         d.offset_0x18, d.offset_0x20, d.offset_0x1c, d.offset_0x4, d.offset_0x8, d.offset_0xc, d.offset_0x10, d.offset_0x14, d.offset_0x24,
-        d.offset_0x28,
+        d.offset_0x28, d.kid_mode,
     ] {
         vcall!(g, param_1, w.vfunction5, p);
     }
@@ -242,6 +249,7 @@ pub fn vfunction41(g: &mut G, this: Ptr, param_1: i32, param_2: i32, param_3: i3
     vcall!(g, d.offset_0xc, w.vfunction41, mx + 0x21, my + 0x80, 0x2e, 0x2d);
     vcall!(g, d.offset_0x10, w.vfunction41, mx + 0xa1, my + 0x80, 0x2e, 0x2d);
     vcall!(g, d.offset_0x14, w.vfunction41, mx + 0x21, my + 0xac, 0x2e, 0x2d);
+    vcall!(g, d.kid_mode, w.vfunction41, mx + 0x21, my + 0xd8, 0x2e, 0x2d);
 }
 
 /// port: 00531270 Sexy::OptionsDialog::vfunction1
@@ -282,7 +290,7 @@ pub fn vfunction27(g: &mut G, this: Ptr, gfx: &mut Graphics) {
     FUN_00455cf0(gfx, g, b"Sound Fx", 0x30, 0x6e);
     let d = g.options_dialog(this).clone();
     let (mx, my) = (g.wc(this).offset_0x2c, g.wc(this).offset_0x30);
-    for (p, s) in [(d.offset_0xc, &b"Fullscreen"[..]), (d.offset_0x10, b"Custom Cursors"), (d.offset_0x14, b"Hardware Acceleration")] {
+    for (p, s) in [(d.offset_0xc, &b"Fullscreen"[..]), (d.offset_0x10, b"Custom Cursors"), (d.offset_0x14, b"Hardware Acceleration"), (d.kid_mode, b"Kid Mode")] {
         let (x, y) = (g.wc(p).offset_0x2c - mx + 0x2b, g.wc(p).offset_0x30 - my + 0x18);
         FUN_00455cf0(gfx, g, s, x, y);
     }

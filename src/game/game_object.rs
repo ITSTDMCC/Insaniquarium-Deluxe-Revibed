@@ -271,8 +271,17 @@ pub fn FUN_004d6c50(g: &mut G, this: Ptr) {
 
 /// port: 004d6ef0 FUN_004d6ef0
 /// One tick of hunger (not while a message is attached); turns hungry-looking just below
-/// +0xa4, never below -1000.
+/// +0xa4, never below -1000. In Kid Mode, once hungry-looking (yellow) hunger ticks only
+/// every third board update, so starving takes three times as long.
 pub fn FUN_004d6ef0(g: &mut G, this: Ptr) {
+    let app = g.go(this).offset_0x0;
+    let yellow = g.go(this).offset_0x14 <= g.go(this).offset_0x1c + 4;
+    if yellow && crate::game::profile::kid_mode(g, app) {
+        let board = g.wfa(app).offset_0x4;
+        if board != NULL && g.board(board).ext_0x444 % 3 != 0 {
+            return;
+        }
+    }
     if g.go(this).offset_0x94 == -1 {
         g.go(this).offset_0x14 -= 1;
     }

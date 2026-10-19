@@ -201,6 +201,10 @@ pub fn PetScreenOverlay(g: &mut G, param_1: Ptr) -> Ptr {
     if !virt && 4 < max {
         max = 4;
     }
+    // Kid Mode: up to five pets into each tank.
+    if !virt && crate::game::profile::kid_mode(g, param_1) {
+        max = p.field_0x18.min(5);
+    }
     g.pets_screen(this).ext_0x130 = max;
 
     // The overlay: a plain Widget with PetScreenOverlay's vftable and the screen at +0x88.
