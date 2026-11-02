@@ -34,7 +34,8 @@ pub fn loading_thread_slice(g: &mut G) {
     let Some(mut lt) = g.loading_thread.take() else { return };
     let app = g.globals.DAT_005e8f28;
     let start = std::time::Instant::now();
-    let fixed = std::env::var_os("WINFISH_FIXED_STEPS").is_some();
+    static FIXED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let fixed = *FIXED.get_or_init(|| std::env::var_os("WINFISH_FIXED_STEPS").is_some());
     let mut steps = 0;
     loop {
         if !crate::game::win_fish_app::vfunction23(g, app, &mut lt) {
@@ -95,11 +96,11 @@ pub fn update_app_step(g: &mut G) {
 }
 
 /// One redraw (`SexyAppBase::DrawDirtyStuff`): `DrawScreen`, then the recorded blits are
-/// rasterized onto the persistent screen image.
-pub fn draw_frame(g: &mut G) {
+/// rasterized onto the persistent screen image. Returns whether anything was drawn.
+pub fn draw_frame(g: &mut G) -> bool {
     let wm = widget_manager(g);
     if wm == NULL {
-        return;
+        return false;
     }
     crate::sexy::widget_manager::FUN_0046d460(g, wm);
     let cmds = std::mem::take(&mut *crate::sexy::widget_manager::wm(g, wm).screen_cmds.lock().unwrap());
@@ -117,7 +118,7 @@ pub fn draw_frame(g: &mut G) {
     let prev = if hd_on && !hd.active { bits.clone() } else { Vec::new() };
     {
         let (w, h) = (g.image(screen).offset_0x20, g.image(screen).offset_0x24);
-        let mut target = crate::sexy::blit::Target { bits: &mut bits, width: w, height: h };
+        let mut target = crate::sexy::blit::Target::new(&mut bits, w, h);
         for c in &cmds {
             target.apply(g, c);
         }
@@ -136,6 +137,7 @@ pub fn draw_frame(g: &mut G) {
     for img in std::mem::take(&mut g.frame_temp_images) {
         g.free(img);
     }
+    !cmds.is_empty()
 }
 
 /// The HD screen's pixels and size, while it is displayed.

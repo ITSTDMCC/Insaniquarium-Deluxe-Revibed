@@ -189,6 +189,52 @@ impl std::fmt::Debug for Obj {
     }
 }
 
+/// The heap's slots, in fixed-size chunks: growing it never moves the objects already
+/// stored (a single `Vec` of every object ever allocated had to copy all of them each time
+/// it doubled, a stall that grew with play time). Pointers are slot indices, as before.
+#[derive(Default)]
+pub struct Slots {
+    chunks: Vec<Box<[Option<Obj>]>>,
+    len: usize,
+}
+
+const CHUNK: usize = 4096;
+
+impl Slots {
+    /// Slot 0 (the null pointer) only.
+    pub fn with_null() -> Slots {
+        let mut s = Slots::default();
+        s.push(None);
+        s
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn push(&mut self, o: Option<Obj>) {
+        if self.len % CHUNK == 0 {
+            self.chunks.push((0..CHUNK).map(|_| None).collect());
+        }
+        self.chunks[self.len / CHUNK][self.len % CHUNK] = o;
+        self.len += 1;
+    }
+
+    #[inline]
+    pub fn get(&self, i: usize) -> Option<&Option<Obj>> {
+        if i < self.len { Some(&self.chunks[i / CHUNK][i % CHUNK]) } else { None }
+    }
+
+    #[inline]
+    pub fn get_mut(&mut self, i: usize) -> Option<&mut Option<Obj>> {
+        if i < self.len { Some(&mut self.chunks[i / CHUNK][i % CHUNK]) } else { None }
+    }
+}
+
 impl G {
     /// `operator new` + placement: stores `obj` and returns its pointer.
     pub fn alloc(&mut self, obj: Obj) -> Ptr {

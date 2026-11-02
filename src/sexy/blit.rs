@@ -12,6 +12,9 @@ pub struct Target<'a> {
     pub bits: &'a mut [u32],
     pub width: i32,
     pub height: i32,
+    /// `mHasAlpha` of the source images drawn so far (sources do not change while a batch of
+    /// recorded calls is replayed, so each is scanned once per batch, not once per draw).
+    alpha: std::collections::HashMap<Ptr, bool>,
 }
 
 #[inline]
@@ -91,26 +94,67 @@ pub(crate) fn has_alpha(img: &crate::sexy::image::Image) -> bool {
     })
 }
 
-impl Target<'_> {
-    fn put(&mut self, x: i32, y: i32, f: impl FnOnce(u32) -> u32) {
-        if x >= 0 && y >= 0 && x < self.width && y < self.height {
-            let i = (y * self.width + x) as usize;
-            self.bits[i] = f(self.bits[i]);
-        }
+impl<'a> Target<'a> {
+    pub fn new(bits: &'a mut [u32], width: i32, height: i32) -> Target<'a> {
+        Target { bits, width, height, alpha: std::collections::HashMap::new() }
     }
 
-    fn blt(&mut self, src: &crate::sexy::image::Image, x: i32, y: i32, sr: Rect, c: Color, mode: i32, mirror: bool) {
-        let ha = mode == 1 && has_alpha(src);
-        for row in 0..sr.mHeight {
-            for col in 0..sr.mWidth {
-                let sx = if mirror { sr.mX + sr.mWidth - 1 - col } else { sr.mX + col };
-                let sy = sr.mY + row;
-                if sx < 0 || sy < 0 || sx >= src.offset_0x20 || sy >= src.offset_0x24 {
-                    continue;
-                }
-                let s = src.mBits[(sy * src.offset_0x20 + sx) as usize];
-                self.put(x + col, y + row, |d| if mode == 1 { additive_px(d, s, c, ha) } else { normal_px(d, s, c) });
+    fn has_alpha(&mut self, image: Ptr, img: &crate::sexy::image::Image) -> bool {
+        *self.alpha.entry(image).or_insert_with(|| has_alpha(img))
+    }
+
+    /// Pixel for pixel what a loop over the whole source rect does (skipping source pixels
+    /// outside the image and destination pixels outside the target), with the skipped rows
+    /// and columns cut off up front and the blend picked once per call.
+    #[allow(clippy::too_many_arguments)]
+    fn blt(&mut self, image: Ptr, src: &crate::sexy::image::Image, x: i32, y: i32, sr: Rect, c: Color, mode: i32, mirror: bool) {
+        let (sw, sh) = (src.offset_0x20, src.offset_0x24);
+        // Columns whose source x is inside the image.
+        let (c0, c1) = if mirror { (sr.mX + sr.mWidth - sw, sr.mX + sr.mWidth) } else { (-sr.mX, sw - sr.mX) };
+        let col0 = 0.max(c0).max(-x);
+        let col1 = sr.mWidth.min(c1).min(self.width - x);
+        let row0 = 0.max(-sr.mY).max(-y);
+        let row1 = sr.mHeight.min(sh - sr.mY).min(self.height - y);
+        if col0 >= col1 || row0 >= row1 {
+            return;
+        }
+        let ha = mode == 1 && self.has_alpha(image, src);
+        let width = self.width;
+        let rows = |f: &mut dyn FnMut(&mut [u32], &[u32])| {
+            for row in row0..row1 {
+                let d0 = ((y + row) * width + x + col0) as usize;
+                let n = (col1 - col0) as usize;
+                let srow = ((sr.mY + row) * sw) as usize;
+                let (s0, s1) = if mirror {
+                    ((sr.mX + sr.mWidth - col1) as usize, (sr.mX + sr.mWidth - col0) as usize)
+                } else {
+                    ((sr.mX + col0) as usize, (sr.mX + col1) as usize)
+                };
+                f(&mut self.bits[d0..d0 + n], &src.mBits[srow + s0..srow + s1]);
             }
+        };
+        let mut rows = rows;
+        macro_rules! run {
+            ($px:expr) => {
+                rows(&mut |d: &mut [u32], s: &[u32]| {
+                    if mirror {
+                        for (d, &s) in d.iter_mut().zip(s.iter().rev()) {
+                            *d = $px(*d, s);
+                        }
+                    } else {
+                        for (d, &s) in d.iter_mut().zip(s) {
+                            *d = $px(*d, s);
+                        }
+                    }
+                })
+            };
+        }
+        if mode == 1 {
+            run!(|d, s| additive_px(d, s, c, ha));
+        } else if c == Color::WHITE {
+            run!(|d, s| normal_px(d, s, Color::WHITE));
+        } else {
+            run!(|d, s| normal_px(d, s, c));
         }
     }
 
@@ -121,17 +165,33 @@ impl Target<'_> {
             return;
         }
         let area = crate::sexy::graphics::FUN_00468430(&dest, &clip);
-        let ha = draw_mode == 1 && has_alpha(img);
-        for y in area.mY..area.mY + area.mHeight {
-            for x in area.mX..area.mX + area.mWidth {
+        let ha = draw_mode == 1 && self.has_alpha(image, img);
+        // (Pixels outside the target were skipped one by one; they are cut off here.)
+        let (x0, x1) = (area.mX.max(0), (area.mX + area.mWidth).min(self.width));
+        let (y0, y1) = (area.mY.max(0), (area.mY + area.mHeight).min(self.height));
+        if x0 >= x1 || y0 >= y1 {
+            return;
+        }
+        let cols: Vec<i32> = (x0..x1)
+            .map(|x| {
                 let col = (x - dest.mX) * src.mWidth / dest.mWidth;
-                let sx = if mirror { src.mX + src.mWidth - 1 - col } else { src.mX + col };
-                let sy = src.mY + (y - dest.mY) * src.mHeight / dest.mHeight;
-                if sx < 0 || sy < 0 || sx >= img.offset_0x20 || sy >= img.offset_0x24 {
+                if mirror { src.mX + src.mWidth - 1 - col } else { src.mX + col }
+            })
+            .collect();
+        for y in y0..y1 {
+            let sy = src.mY + (y - dest.mY) * src.mHeight / dest.mHeight;
+            if sy < 0 || sy >= img.offset_0x24 {
+                continue;
+            }
+            let srow = (sy * img.offset_0x20) as usize;
+            let drow = (y * self.width) as usize;
+            for (x, &sx) in (x0..x1).zip(&cols) {
+                if sx < 0 || sx >= img.offset_0x20 {
                     continue;
                 }
-                let s = img.mBits[(sy * img.offset_0x20 + sx) as usize];
-                self.put(x, y, |d| if draw_mode == 1 { additive_px(d, s, color, ha) } else { normal_px(d, s, color) });
+                let s = img.mBits[srow + sx as usize];
+                let d = &mut self.bits[drow + x as usize];
+                *d = if draw_mode == 1 { additive_px(*d, s, color, ha) } else { normal_px(*d, s, color) };
             }
         }
     }
@@ -141,7 +201,7 @@ impl Target<'_> {
         match *cmd {
             ImageCmd::Blt { image, x, y, src, color, draw_mode } => {
                 if let Some(img) = image_of(g, image) {
-                    self.blt(img, x, y, src, color, draw_mode, false);
+                    self.blt(image, img, x, y, src, color, draw_mode, false);
                 }
             }
             ImageCmd::BltF { image, x, y, src, clip, color, draw_mode } => {
@@ -155,29 +215,33 @@ impl Target<'_> {
                     let y1 = (iy + src.mHeight).min(clip.mY + clip.mHeight);
                     if x0 < x1 && y0 < y1 {
                         let s = Rect::new(src.mX + x0 - ix, src.mY + y0 - iy, x1 - x0, y1 - y0);
-                        self.blt(img, x0, y0, s, color, draw_mode, false);
+                        self.blt(image, img, x0, y0, s, color, draw_mode, false);
                     }
                 }
             }
             ImageCmd::BltMirror { image, x, y, src, color, draw_mode } => {
                 if let Some(img) = image_of(g, image) {
-                    self.blt(img, x, y, src, color, draw_mode, true);
+                    self.blt(image, img, x, y, src, color, draw_mode, true);
                 }
             }
             ImageCmd::BltStretched { image, dest, src, clip, color, draw_mode, .. } => self.stretched(g, image, dest, src, clip, color, draw_mode, false),
             ImageCmd::BltStretchedMirror { image, dest, src, clip, color, draw_mode, .. } => self.stretched(g, image, dest, src, clip, color, draw_mode, true),
             ImageCmd::FillRect { rect, color, draw_mode } => {
                 let s = ((color.mAlpha as u32) << 24) | ((color.mRed as u32) << 16) | ((color.mGreen as u32) << 8) | color.mBlue as u32;
-                for y in rect.mY..rect.mY + rect.mHeight {
-                    for x in rect.mX..rect.mX + rect.mWidth {
-                        self.put(x, y, |d| {
-                            if draw_mode == 1 {
-                                additive_px(d, 0xffff_ffff, color, false)
-                            } else {
-                                let a = s >> 24;
-                                if a == 0xff { s | 0xff00_0000 } else { blend(d, s, a) }
-                            }
-                        });
+                let (x0, x1) = (rect.mX.max(0), (rect.mX + rect.mWidth).min(self.width));
+                let (y0, y1) = (rect.mY.max(0), (rect.mY + rect.mHeight).min(self.height));
+                if x0 >= x1 || y0 >= y1 {
+                    return;
+                }
+                for y in y0..y1 {
+                    let row = (y * self.width) as usize;
+                    for d in &mut self.bits[row + x0 as usize..row + x1 as usize] {
+                        *d = if draw_mode == 1 {
+                            additive_px(*d, 0xffff_ffff, color, false)
+                        } else {
+                            let a = s >> 24;
+                            if a == 0xff { s | 0xff00_0000 } else { blend(*d, s, a) }
+                        };
                     }
                 }
             }
@@ -236,10 +300,158 @@ pub fn render_offscreen(g: &mut G, image: Ptr, draw: impl FnOnce(&mut G, &mut Gr
     g.hd = hd;
     let mut bits = std::mem::take(&mut g.image(image).mBits);
     {
-        let mut t = Target { bits: &mut bits, width: w, height: h };
+        let mut t = Target::new(&mut bits, w, h);
         for c in &cmds {
             t.apply(g, c);
         }
     }
     g.image(image).mBits = bits;
+}
+
+#[cfg(test)]
+mod tests {
+    //! The clipped blitters against the straightforward per-pixel loops they replaced.
+    use super::*;
+    use crate::sexy::image::Image;
+
+    fn ref_put(t: &mut [u32], w: i32, h: i32, x: i32, y: i32, f: impl FnOnce(u32) -> u32) {
+        if x >= 0 && y >= 0 && x < w && y < h {
+            let i = (y * w + x) as usize;
+            t[i] = f(t[i]);
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn ref_blt(t: &mut [u32], w: i32, h: i32, src: &Image, x: i32, y: i32, sr: Rect, c: Color, mode: i32, mirror: bool) {
+        let ha = mode == 1 && has_alpha(src);
+        for row in 0..sr.mHeight {
+            for col in 0..sr.mWidth {
+                let sx = if mirror { sr.mX + sr.mWidth - 1 - col } else { sr.mX + col };
+                let sy = sr.mY + row;
+                if sx < 0 || sy < 0 || sx >= src.offset_0x20 || sy >= src.offset_0x24 {
+                    continue;
+                }
+                let s = src.mBits[(sy * src.offset_0x20 + sx) as usize];
+                ref_put(t, w, h, x + col, y + row, |d| if mode == 1 { additive_px(d, s, c, ha) } else { normal_px(d, s, c) });
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn ref_stretched(t: &mut [u32], w: i32, h: i32, img: &Image, dest: Rect, src: Rect, clip: Rect, color: Color, draw_mode: i32, mirror: bool) {
+        if dest.mWidth <= 0 || dest.mHeight <= 0 {
+            return;
+        }
+        let area = crate::sexy::graphics::FUN_00468430(&dest, &clip);
+        let ha = draw_mode == 1 && has_alpha(img);
+        for y in area.mY..area.mY + area.mHeight {
+            for x in area.mX..area.mX + area.mWidth {
+                let col = (x - dest.mX) * src.mWidth / dest.mWidth;
+                let sx = if mirror { src.mX + src.mWidth - 1 - col } else { src.mX + col };
+                let sy = src.mY + (y - dest.mY) * src.mHeight / dest.mHeight;
+                if sx < 0 || sy < 0 || sx >= img.offset_0x20 || sy >= img.offset_0x24 {
+                    continue;
+                }
+                let s = img.mBits[(sy * img.offset_0x20 + sx) as usize];
+                ref_put(t, w, h, x, y, |d| if draw_mode == 1 { additive_px(d, s, color, ha) } else { normal_px(d, s, color) });
+            }
+        }
+    }
+
+    fn ref_fill(t: &mut [u32], w: i32, h: i32, rect: Rect, color: Color, draw_mode: i32) {
+        let s = ((color.mAlpha as u32) << 24) | ((color.mRed as u32) << 16) | ((color.mGreen as u32) << 8) | color.mBlue as u32;
+        for y in rect.mY..rect.mY + rect.mHeight {
+            for x in rect.mX..rect.mX + rect.mWidth {
+                ref_put(t, w, h, x, y, |d| {
+                    if draw_mode == 1 {
+                        additive_px(d, 0xffff_ffff, color, false)
+                    } else {
+                        let a = s >> 24;
+                        if a == 0xff { s | 0xff00_0000 } else { blend(d, s, a) }
+                    }
+                });
+            }
+        }
+    }
+
+    struct Rng(u64);
+    impl Rng {
+        fn next(&mut self) -> u32 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            (self.0 >> 16) as u32
+        }
+        fn range(&mut self, lo: i32, hi: i32) -> i32 {
+            lo + (self.next() % (hi - lo) as u32) as i32
+        }
+    }
+
+    #[test]
+    fn clipped_blitters_match_per_pixel_loops() {
+        let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+        let mut g = G::default();
+        let mut images = Vec::new();
+        for i in 0..6 {
+            let (w, h) = (rng.range(1, 90), rng.range(1, 70));
+            let mut img = Image::new();
+            img.offset_0x20 = w;
+            img.offset_0x24 = h;
+            img.mBits = (0..w * h)
+                .map(|_| {
+                    let a = match (i, rng.next() % 4) {
+                        (0, _) => 0xff,
+                        (_, 0) => 0,
+                        (_, 1) => 0xff,
+                        _ => rng.next() & 0xff,
+                    };
+                    (a << 24) | (rng.next() & 0xff_ffff)
+                })
+                .collect();
+            let p = g.alloc(Obj { vt: None, node: Node::Image(Box::new(img.clone())) });
+            images.push((p, img));
+        }
+        let (w, h) = (160, 120);
+        let colors = [Color::WHITE, Color { mRed: 255, mGreen: 255, mBlue: 255, mAlpha: 128 }, Color { mRed: 200, mGreen: 200, mBlue: 200, mAlpha: 255 }, Color { mRed: 255, mGreen: 40, mBlue: 90, mAlpha: 200 }];
+        for round in 0..400 {
+            let init: Vec<u32> = (0..w * h).map(|_| if round % 3 == 0 { rng.next() } else { 0xff00_0000 | rng.next() }).collect();
+            let mut expect = init.clone();
+            let mut got = init;
+            let mut cmds = Vec::new();
+            for _ in 0..12 {
+                let (p, img) = &images[rng.range(0, images.len() as i32) as usize];
+                let src = Rect::new(rng.range(-10, img.offset_0x20), rng.range(-10, img.offset_0x24), rng.range(0, img.offset_0x20 + 15), rng.range(0, img.offset_0x24 + 15));
+                let color = colors[rng.range(0, 4) as usize];
+                let mode = rng.range(0, 2);
+                let mirror = rng.next() % 2 == 0;
+                let (x, y) = (rng.range(-100, w + 20), rng.range(-80, h + 20));
+                match rng.next() % 4 {
+                    0 | 1 => {
+                        ref_blt(&mut expect, w, h, img, x, y, src, color, mode, mirror);
+                        cmds.push(if mirror { ImageCmd::BltMirror { image: *p, x, y, src, color, draw_mode: mode } } else { ImageCmd::Blt { image: *p, x, y, src, color, draw_mode: mode } });
+                    }
+                    2 => {
+                        let dest = Rect::new(x, y, rng.range(-2, 200), rng.range(-2, 150));
+                        let clip = Rect::new(rng.range(-20, 60), rng.range(-20, 60), rng.range(0, 200), rng.range(0, 160));
+                        ref_stretched(&mut expect, w, h, img, dest, src, clip, color, mode, mirror);
+                        cmds.push(if mirror {
+                            ImageCmd::BltStretchedMirror { image: *p, dest, src, clip, color, draw_mode: mode, fast_stretch: false }
+                        } else {
+                            ImageCmd::BltStretched { image: *p, dest, src, clip, color, draw_mode: mode, fast_stretch: false }
+                        });
+                    }
+                    _ => {
+                        let rect = Rect::new(x, y, rng.range(-3, 120), rng.range(-3, 90));
+                        ref_fill(&mut expect, w, h, rect, color, mode);
+                        cmds.push(ImageCmd::FillRect { rect, color, draw_mode: mode });
+                    }
+                }
+            }
+            let mut t = Target::new(&mut got, w, h);
+            for c in &cmds {
+                t.apply(&g, c);
+            }
+            assert!(expect == got, "round {round} differs");
+        }
+    }
 }

@@ -252,13 +252,16 @@ impl HdScreen {
             }
         }
         let (w, h) = (self.width, self.height);
-        let threads = std::thread::available_parallelism().map_or(4, |n| n.get()).clamp(1, 16) as i32;
+        let threads = std::thread::available_parallelism().map_or(4, |n| n.get()).clamp(1, 16) as i32 * 2;
         let rows = (h + threads - 1) / threads;
         let sources = &sources;
-        std::thread::scope(|scope| {
+        // (On the engine's worker threads, which are already running, instead of new
+        // threads started for every frame.)
+        let pool = bevy::tasks::ComputeTaskPool::get_or_init(bevy::tasks::TaskPool::default);
+        pool.scope(|scope| {
             for (i, band) in self.bits.chunks_mut((rows * w) as usize).enumerate() {
                 let y0 = i as i32 * rows;
-                scope.spawn(move || {
+                scope.spawn(async move {
                     let mut p = Painter { bits: band, width: w, y0, y1: (y0 + rows).min(h) };
                     for c in cmds {
                         p.apply(g, sources, c);
