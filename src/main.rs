@@ -22,7 +22,15 @@ fn main() {
         ..default()
     };
     App::new()
-        .add_plugins(DefaultPlugins.set(render).set(WindowPlugin {
+        .add_plugins(DefaultPlugins.set(render).set(bevy::log::LogPlugin {
+            // Without the renderer the engine logs two harmless startup complaints; hide them.
+            filter: if software {
+                format!("{},bevy_render::extract_resource=off,bevy_render::texture=error", bevy::log::DEFAULT_FILTER)
+            } else {
+                bevy::log::DEFAULT_FILTER.to_string()
+            },
+            ..default()
+        }).set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Insaniquarium Deluxe (Rust port)".into(),
                 resolution: (640u32, 480u32).into(),
