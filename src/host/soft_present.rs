@@ -119,7 +119,7 @@ fn present(mut state: NonSendMut<SoftState>, mut g: ResMut<G>, cursor: Res<SoftC
             (&im.mBits, im.offset_0x20 as u32, im.offset_0x24 as u32)
         }
     };
-    if bits.len() != (sw * sh) as usize {
+    if sw == 0 || sh == 0 || bits.len() != (sw * sh) as usize {
         return;
     }
     if state.last_bits != bits {
