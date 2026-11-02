@@ -37,6 +37,9 @@ bevy = { version = "0.19.1", default-features = false, features = [
 # (Already part of bevy.) Its `gles` feature adds OpenGL as a last-resort graphics backend,
 # for old or basic GPUs with no Vulkan or DX12 driver.
 bevy_render = { version = "0.19.1", default-features = false, features = ["gles"] }
+softbuffer = "0.4.8"
+# (Already part of bevy.) Used directly only to check for a hardware GPU before start-up.
+wgpu = { version = "29.0.4", default-features = false }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"] }
 
 [dev-dependencies]

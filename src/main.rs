@@ -12,8 +12,17 @@ fn main() {
         .find(|a| !a.starts_with("--"))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../Insaniquarium Deluxe"));
+    // Software display (no GPU): asked for, or no hardware GPU found.
+    let software = args.iter().any(|a| a.eq_ignore_ascii_case("--software"))
+        || std::env::var_os("WINFISH_SOFTWARE").is_some_and(|v| v != "0")
+        || !winfish_rs::host::soft_present::gpu_usable();
+    let render = bevy::render::RenderPlugin {
+        // No backends: the renderer is not started (`soft_present` shows the picture).
+        render_creation: if software { bevy::render::settings::WgpuSettings { backends: None, ..default() }.into() } else { default() },
+        ..default()
+    };
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
+        .add_plugins(DefaultPlugins.set(render).set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Insaniquarium Deluxe (Rust port)".into(),
                 resolution: (640u32, 480u32).into(),
@@ -23,6 +32,6 @@ fn main() {
             close_when_requested: false,
             ..default()
         }))
-        .add_plugins(winfish_rs::host::WinFishPlugin { game_dir, hd })
+        .add_plugins(winfish_rs::host::WinFishPlugin { game_dir, hd, software })
         .run();
 }
