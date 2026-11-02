@@ -26,6 +26,7 @@ pub(crate) fn blend(d: u32, s: u32, a: u32) -> u32 {
 }
 
 /// `NormalBlt` onto an opaque destination (`mHasAlpha`/`mHasTrans` clear).
+#[inline]
 pub(crate) fn normal_px(d: u32, s: u32, c: Color) -> u32 {
     let white = c == Color::WHITE;
     if white {
@@ -62,6 +63,7 @@ pub(crate) fn normal_px(d: u32, s: u32, c: Color) -> u32 {
 /// `AdditiveBlt`: with a white color the source is added as is, otherwise each channel is
 /// first scaled by the color pre-multiplied by its alpha; a source with `mHasAlpha` is also
 /// weighted by its pixel alpha. Each channel saturates at 255 (the 0x11d max table).
+#[inline]
 pub(crate) fn additive_px(d: u32, s: u32, c: Color, has_alpha: bool) -> u32 {
     let sat = |v: u32| v.min(0xff);
     let (mut sr, mut sg, mut sb) = (s & 0xff0000, s & 0xff00, s & 0xff);
