@@ -127,7 +127,7 @@ pub fn draw_frame(g: &mut G) {
             let (w, h) = (g.image(screen).offset_0x20, g.image(screen).offset_0x24);
             hd.activate(&prev, w, h);
         }
-        hd.paint(g, &cmds);
+        crate::host::perf::span(crate::host::perf::Section::HdPaint, || hd.paint(g, &cmds));
     } else {
         hd.active = false;
     }

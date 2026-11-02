@@ -13,6 +13,7 @@ pub mod cursor;
 pub mod debug;
 pub mod music;
 pub mod openmpt;
+pub mod perf;
 pub mod upscale;
 
 use crate::sexy::prelude::*;
@@ -262,6 +263,7 @@ fn start_vfs_load(mut commands: Commands, dir: Res<GameDir>) {
 }
 
 fn poll_vfs_load(mut commands: Commands, task: Option<ResMut<VfsTask>>, mut g: ResMut<G>, mut host: ResMut<HostState>) {
+    perf::frame(g.objs.len());
     let Some(mut task) = task else { return };
     if let Some(result) = block_on(future::poll_once(&mut task.0)) {
         commands.remove_resource::<VfsTask>();
@@ -693,21 +695,24 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>, debug
     let dt = time.delta_secs_f64() * 1000.0;
     host.speed_offset_ms += dt * (speed - 1.0);
     g.tick_count = (started.elapsed().as_millis() as f64 + host.speed_offset_ms).max(0.0) as u32;
-    crate::game::boot::loading_thread_slice(&mut g);
+    perf::span(perf::Section::Loading, || crate::game::boot::loading_thread_slice(&mut g));
     host.accum_ms += dt * speed;
     // At most 10 catch-up updates per frame, like the framework's frame skip limit.
     let max_steps = (10.0 * speed.max(1.0)) as i32;
     let mut steps = 0;
     let frame_ms = frame_time_ms(&mut g);
-    while host.accum_ms >= frame_ms && steps < max_steps {
-        crate::game::boot::update_frame(&mut g);
-        host.accum_ms -= frame_ms;
-        steps += 1;
-    }
+    perf::span(perf::Section::Update, || {
+        while host.accum_ms >= frame_ms && steps < max_steps {
+            crate::game::boot::update_frame(&mut g);
+            host.accum_ms -= frame_ms;
+            steps += 1;
+        }
+    });
+    perf::updates(steps as u64, steps == max_steps);
     if steps == max_steps {
         host.accum_ms = 0.0;
     }
-    crate::game::boot::draw_frame(&mut g);
+    perf::span(perf::Section::Draw, || crate::game::boot::draw_frame(&mut g));
 }
 
 /// Writes the files the game saved this frame (`users.dat`, `user%d.dat`, ...) to the
@@ -763,7 +768,11 @@ fn close_requested(mut g: ResMut<G>, host: Res<HostState>, mut events: MessageRe
     }
 }
 
-fn upload_screen(
+fn upload_screen(g: ResMut<G>, host: ResMut<HostState>, images: ResMut<Assets<Image>>, exit: MessageWriter<AppExit>) {
+    perf::span(perf::Section::Upload, || upload_screen_inner(g, host, images, exit));
+}
+
+fn upload_screen_inner(
     mut g: ResMut<G>,
     mut host: ResMut<HostState>,
     mut images: ResMut<Assets<Image>>,
