@@ -13,6 +13,8 @@ pub mod cursor;
 pub mod debug;
 pub mod music;
 pub mod openmpt;
+pub mod perf;
+pub mod screen_upload;
 pub mod upscale;
 
 use crate::sexy::prelude::*;
@@ -72,6 +74,62 @@ pub struct HostState {
     pub window_changed: Option<std::time::Instant>,
     /// Game time gained (or lost) against the clock under the debug menu's game speed (ms).
     pub speed_offset_ms: f64,
+    /// The 640x480 screen as last sent to the GPU.
+    pub uploaded: Vec<u32>,
+    /// Evens out the frame times fed to the update clock (see [`Pacer`]).
+    pub pacer: Pacer,
+}
+
+/// (Port addition) Frame pacing for the update clock. With vsync every frame lasts one
+/// refresh, but the measured frame time wobbles by a millisecond or so around it. Fed to the
+/// fixed 28 ms update clock as is, that wobble moves updates to the neighbouring frame now
+/// and then, so the picture advances unevenly (a frame with two updates next to one with
+/// none). Frame times within 1.5 ms of a whole number of refreshes count as exactly that;
+/// the difference is kept and paid back 0.1 ms a frame, so the game clock still follows
+/// real time over the long run.
+#[derive(Default)]
+pub struct Pacer {
+    /// Recent frame times (ms), for the refresh interval.
+    recent: std::collections::VecDeque<f64>,
+    refresh_ms: f64,
+    /// Measured time not yet given to the clock (ms; can be negative).
+    owed_ms: f64,
+}
+
+impl Pacer {
+    pub fn step(&mut self, dt: f64) -> f64 {
+        if !(dt > 0.0) {
+            return dt.max(0.0);
+        }
+        self.recent.push_back(dt);
+        if self.recent.len() > 64 {
+            self.recent.pop_front();
+        }
+        if self.recent.len() % 16 == 0 || self.refresh_ms == 0.0 {
+            let mut v: Vec<f64> = self.recent.iter().copied().collect();
+            v.sort_by(|a, b| a.total_cmp(b));
+            self.refresh_ms = v[v.len() / 2];
+        }
+        let r = self.refresh_ms;
+        // Only plausible vsync intervals (30..360 Hz) are snapped to.
+        if !(2.7..=34.0).contains(&r) {
+            return dt + std::mem::take(&mut self.owed_ms);
+        }
+        let n = (dt / r).round();
+        if n < 1.0 || n > 4.0 || (dt - n * r).abs() > 1.5 {
+            // A real hitch or a change of refresh rate: no snapping.
+            return dt + std::mem::take(&mut self.owed_ms);
+        }
+        let snapped = n * r;
+        self.owed_ms += dt - snapped;
+        if self.owed_ms.abs() >= 2.0 * r {
+            return snapped + std::mem::take(&mut self.owed_ms);
+        }
+        // Paid back a little at a time, too little to move an update to another frame.
+        let part = self.owed_ms.clamp(-0.1, 0.1);
+        self.owed_ms -= part;
+        snapped + part
+    }
 }
 
 pub struct WinFishPlugin {
@@ -93,6 +151,7 @@ impl Plugin for WinFishPlugin {
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
             .add_plugins(upscale::plugin)
+            .add_plugins(screen_upload::plugin)
             .add_systems(Update, (poll_vfs_load, close_requested, focus, debug::keys, input, debug::auto_collect, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, restore_window, apply_screen_mode, remember_window, fit_screen, cursor::update, debug::overlay).chain());
     }
 }
@@ -242,8 +301,8 @@ fn setup_screen(
         Extent3d { width: SCREEN_W, height: SCREEN_H, depth_or_array_layers: 1 },
         TextureDimension::D2,
         &[0, 0, 0, 255],
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::default(),
+        TextureFormat::Bgra8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
     );
     let handle = images.add(img);
     commands.spawn((
@@ -262,6 +321,7 @@ fn start_vfs_load(mut commands: Commands, dir: Res<GameDir>) {
 }
 
 fn poll_vfs_load(mut commands: Commands, task: Option<ResMut<VfsTask>>, mut g: ResMut<G>, mut host: ResMut<HostState>) {
+    perf::frame(g.objs.len());
     let Some(mut task) = task else { return };
     if let Some(result) = block_on(future::poll_once(&mut task.0)) {
         commands.remove_resource::<VfsTask>();
@@ -676,7 +736,8 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>, debug
         .unwrap_or(0);
     // Test hook: WINFISH_FIXED_STEPS=<n> runs exactly n logic updates per rendered frame and
     // derives GetTickCount from the update count, so scripted runs are reproducible.
-    let fixed = std::env::var("WINFISH_FIXED_STEPS").ok().and_then(|v| v.parse::<u32>().ok());
+    static FIXED: std::sync::OnceLock<Option<u32>> = std::sync::OnceLock::new();
+    let fixed = *FIXED.get_or_init(|| std::env::var("WINFISH_FIXED_STEPS").ok().and_then(|v| v.parse::<u32>().ok()));
     if let Some(n) = fixed {
         g.tick_count = (host.fixed_updates as f64 * frame_time_ms(&mut g)) as u32;
         crate::game::boot::loading_thread_slice(&mut g);
@@ -693,21 +754,24 @@ fn run_app(mut g: ResMut<G>, mut host: ResMut<HostState>, time: Res<Time>, debug
     let dt = time.delta_secs_f64() * 1000.0;
     host.speed_offset_ms += dt * (speed - 1.0);
     g.tick_count = (started.elapsed().as_millis() as f64 + host.speed_offset_ms).max(0.0) as u32;
-    crate::game::boot::loading_thread_slice(&mut g);
-    host.accum_ms += dt * speed;
+    perf::span(perf::Section::Loading, || crate::game::boot::loading_thread_slice(&mut g));
+    host.accum_ms += host.pacer.step(dt) * speed;
     // At most 10 catch-up updates per frame, like the framework's frame skip limit.
     let max_steps = (10.0 * speed.max(1.0)) as i32;
     let mut steps = 0;
     let frame_ms = frame_time_ms(&mut g);
-    while host.accum_ms >= frame_ms && steps < max_steps {
-        crate::game::boot::update_frame(&mut g);
-        host.accum_ms -= frame_ms;
-        steps += 1;
-    }
+    perf::span(perf::Section::Update, || {
+        while host.accum_ms >= frame_ms && steps < max_steps {
+            crate::game::boot::update_frame(&mut g);
+            host.accum_ms -= frame_ms;
+            steps += 1;
+        }
+    });
+    perf::updates(steps as u64, steps == max_steps);
     if steps == max_steps {
         host.accum_ms = 0.0;
     }
-    crate::game::boot::draw_frame(&mut g);
+    perf::span(perf::Section::Draw, || crate::game::boot::draw_frame(&mut g));
 }
 
 /// Writes the files the game saved this frame (`users.dat`, `user%d.dat`, ...) to the
@@ -763,15 +827,23 @@ fn close_requested(mut g: ResMut<G>, host: Res<HostState>, mut events: MessageRe
     }
 }
 
-fn upload_screen(
+fn upload_screen(g: ResMut<G>, host: ResMut<HostState>, images: ResMut<Assets<Image>>, exit: MessageWriter<AppExit>, upload: Res<screen_upload::ScreenUpload>) {
+    perf::span(perf::Section::Upload, || upload_screen_inner(g, host, images, exit, &upload));
+}
+
+fn upload_screen_inner(
     mut g: ResMut<G>,
     mut host: ResMut<HostState>,
     mut images: ResMut<Assets<Image>>,
     mut exit: MessageWriter<AppExit>,
+    upload: &screen_upload::ScreenUpload,
 ) {
     let (Some(handle), true) = (host.screen.clone(), host.booted) else { return };
-    let Some(bits) = crate::game::boot::screen_bits(&mut g) else { return };
-    let data: Vec<u8> = bits.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, 255]).collect();
+    let wm = crate::game::boot::widget_manager(&mut g);
+    if wm == NULL {
+        return;
+    }
+    let screen = crate::sexy::widget_manager::wm(&mut g, wm).offset_0xc;
     // Test hook: WINFISH_SNAPSHOT=<frames>:<file.png>[|<frames>:<file.png>...] saves the
     // screen after those many frames and quits after the last one.
     host.frames += 1;
@@ -782,55 +854,95 @@ fn upload_screen(
         crate::game::boot::FUN_005024f0_end(&mut g);
         exit.write(AppExit::Success);
     }
-    if let Ok(spec) = std::env::var("WINFISH_SNAPSHOT") {
-        let shots: Vec<(u64, &str)> =
-            spec.split('|').filter_map(|s| s.split_once(':').map(|(n, p)| (n.parse::<u64>().unwrap_or(0), p))).collect();
-        let last = shots.iter().map(|s| s.0).max().unwrap_or(0);
-        for (n, path) in shots {
-            if host.frames == n {
-                let _ = image::save_buffer(path, &data, SCREEN_W, SCREEN_H, image::ExtendedColorType::Rgba8);
-                // With the HD screen up, it is saved too, as `<name>_hd.png`.
-                if let Some((bits, w, h)) = crate::game::boot::screen_bits_hd(&g) {
-                    let hd: Vec<u8> = bits.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, 255]).collect();
-                    let hd_path = path.strip_suffix(".png").map_or_else(|| format!("{path}_hd.png"), |stem| format!("{stem}_hd.png"));
-                    let _ = image::save_buffer(hd_path, &hd, w as u32, h as u32, image::ExtendedColorType::Rgba8);
-                }
-                if n == last {
-                    exit.write(AppExit::Success);
-                }
+    static SNAPSHOTS: std::sync::OnceLock<Vec<(u64, String)>> = std::sync::OnceLock::new();
+    let shots = SNAPSHOTS.get_or_init(|| {
+        let spec = std::env::var("WINFISH_SNAPSHOT").unwrap_or_default();
+        spec.split('|').filter_map(|s| s.split_once(':').map(|(n, p)| (n.parse::<u64>().unwrap_or(0), p.to_string()))).collect()
+    });
+    let last = shots.iter().map(|s| s.0).max().unwrap_or(0);
+    for (n, path) in shots {
+        if host.frames == *n {
+            let data: Vec<u8> = g.image(screen).mBits.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, 255]).collect();
+            let _ = image::save_buffer(path, &data, SCREEN_W, SCREEN_H, image::ExtendedColorType::Rgba8);
+            // With the HD screen up, it is saved too, as `<name>_hd.png`.
+            if let Some((bits, w, h)) = crate::game::boot::screen_bits_hd(&g) {
+                let hd: Vec<u8> = bits.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8, 255]).collect();
+                let hd_path = path.strip_suffix(".png").map_or_else(|| format!("{path}_hd.png"), |stem| format!("{stem}_hd.png"));
+                let _ = image::save_buffer(hd_path, &hd, w as u32, h as u32, image::ExtendedColorType::Rgba8);
+            }
+            if *n == last {
+                exit.write(AppExit::Success);
             }
         }
     }
-    // The HD screen (upscaled art), when it is up, replaces the picture. Its 0xAARRGGBB
-    // pixels are BGRA bytes in memory, so they are copied as is, and only after a redraw.
+    // The HD screen (upscaled art), when it is up, replaces the picture. 0xAARRGGBB pixels
+    // are BGRA bytes in memory, so both screens are copied as is into a BGRA texture.
     let hd = g.hd.active;
-    let (w, h, format) = if hd {
-        (g.hd.width as u32, g.hd.height as u32, TextureFormat::Bgra8UnormSrgb)
-    } else {
-        (SCREEN_W, SCREEN_H, TextureFormat::Rgba8UnormSrgb)
-    };
-    // A size or format change gets a new image (the material is pointed at it in
+    let (w, h) = if hd { (g.hd.width as u32, g.hd.height as u32) } else { (SCREEN_W, SCREEN_H) };
+    let format = TextureFormat::Bgra8UnormSrgb;
+    // A size change gets a new image (the material is pointed at it in
     // `refresh_screen_material`).
     let replace = images.get(&handle).is_none_or(|img| img.width() != w || img.height() != h || img.texture_descriptor.format != format);
     if replace {
-        let img = Image::new_fill(Extent3d { width: w, height: h, depth_or_array_layers: 1 }, TextureDimension::D2, &[0, 0, 0, 255], format, RenderAssetUsages::default());
+        let img = Image::new_fill(Extent3d { width: w, height: h, depth_or_array_layers: 1 }, TextureDimension::D2, &[0, 0, 0, 255], format, RenderAssetUsages::RENDER_WORLD);
         images.remove(&handle);
         host.screen = Some(images.add(img));
         g.hd.dirty = true;
+        host.uploaded.clear();
     }
     let Some(handle) = host.screen.clone() else { return };
-    if hd {
+    // (Port change) Only a changed picture goes to the GPU: touching the image re-sends the
+    // whole texture, and most frames between the game's 28 ms updates change nothing.
+    let bits: &[u32] = if hd {
         if !std::mem::take(&mut g.hd.dirty) {
             return;
         }
-        if let Some(mut img) = images.get_mut(&handle)
-            && let Some(buf) = img.data.as_mut()
-        {
-            for (dst, px) in buf.chunks_exact_mut(4).zip(&g.hd.bits) {
-                dst.copy_from_slice(&px.to_le_bytes());
+        &g.hd.bits
+    } else {
+        let bits = &g.image(screen).mBits;
+        if bits.len() != (w * h) as usize || host.uploaded == *bits {
+            return;
+        }
+        host.uploaded.clear();
+        host.uploaded.extend_from_slice(bits);
+        &host.uploaded
+    };
+    // (The 640x480 screen is shown opaque; the HD screen's pixels go as they are.)
+    let opaque = if hd { 0 } else { 0xff00_0000 };
+    // Written straight into the texture (`screen_upload`); the image asset itself is not
+    // touched after it is created.
+    upload.send(handle.id(), w, h, bits, opaque);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Pacer;
+
+    /// On a 60 Hz display whose measured frame times wobble by up to 0.7 ms, the clock
+    /// advances by (nearly) one refresh every frame, and still keeps real time.
+    #[test]
+    fn pacer_evens_out_vsync_wobble() {
+        let refresh = 1000.0 / 60.0;
+        let mut seed = 12345u64;
+        let mut wobble = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            ((seed >> 33) as f64 / (1u64 << 31) as f64 - 0.5) * 1.4
+        };
+        let (mut pacer, mut real, mut given, mut prev_end, mut worst) = (Pacer::default(), 0.0, 0.0, 0.0, 0f64);
+        for k in 1..6000 {
+            let end = k as f64 * refresh + wobble();
+            let dt = end - prev_end;
+            prev_end = end;
+            real += dt;
+            let step = pacer.step(dt);
+            given += step;
+            if k > 64 {
+                worst = worst.max((step - refresh).abs());
             }
         }
-    } else if let Some(mut img) = images.get_mut(&handle) {
-        img.data = Some(data);
+        assert!(worst < 0.25, "a frame advanced the clock by {worst} ms more or less than a refresh");
+        assert!((real - given).abs() < 2.0 * refresh, "clock drifted {} ms", real - given);
+        // A real hitch (a 50 ms frame) is passed through as is.
+        assert!((pacer.step(50.0) - 50.0).abs() < 0.2);
     }
 }

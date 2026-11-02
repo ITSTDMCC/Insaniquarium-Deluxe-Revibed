@@ -100,7 +100,7 @@ pub struct Globals {
 #[derive(Resource)]
 pub struct G {
     /// The heap: index = [`Ptr`]. Slot 0 is the null pointer and stays empty.
-    pub objs: Vec<Option<Obj>>,
+    pub objs: crate::sexy::object::Slots,
     pub globals: Globals,
     /// `DAT_005eb928`: the global `Sexy::MTRand` behind `Sexy::Rand()` (`FUN_0040f9e0`).
     pub DAT_005eb928: MTRand,
@@ -144,6 +144,6 @@ pub struct G {
 
 impl Default for G {
     fn default() -> Self {
-        G { objs: vec![None], globals: Globals { DAT_005e15f8: 1, DAT_005e1600: true, DAT_005e15fc: 1, DAT_005df58c: 1, DAT_005df590: 5000, ..Globals::default() }, DAT_005eb928: MTRand::default(), now_time64: 0, tick_count: 0, cursor_num: 0, clipboard: Vec::new(), update_check_failed: false, crt_holdrand: 1, frame_temp_images: Vec::new(), hd: Default::default(), res: Default::default(), sound_requests: Vec::new(), vfs: Default::default(), resource_manager: Default::default(), properties: Default::default(), registry: Default::default(), utc_offset_secs: 0, music: Default::default(), loading_thread: None }
+        G { objs: crate::sexy::object::Slots::with_null(), globals: Globals { DAT_005e15f8: 1, DAT_005e1600: true, DAT_005e15fc: 1, DAT_005df58c: 1, DAT_005df590: 5000, ..Globals::default() }, DAT_005eb928: MTRand::default(), now_time64: 0, tick_count: 0, cursor_num: 0, clipboard: Vec::new(), update_check_failed: false, crt_holdrand: 1, frame_temp_images: Vec::new(), hd: Default::default(), res: Default::default(), sound_requests: Vec::new(), vfs: Default::default(), resource_manager: Default::default(), properties: Default::default(), registry: Default::default(), utc_offset_secs: 0, music: Default::default(), loading_thread: None }
     }
 }

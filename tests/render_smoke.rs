@@ -52,7 +52,7 @@ fn title_and_food_render() {
 
     let mut bits = std::mem::take(&mut g.image(s).mBits);
     {
-        let mut target = winfish_rs::sexy::blit::Target { bits: &mut bits, width: 640, height: 480 };
+        let mut target = winfish_rs::sexy::blit::Target::new(&mut bits, 640, 480);
         for c in &cmds {
             target.apply(&g, c);
         }
