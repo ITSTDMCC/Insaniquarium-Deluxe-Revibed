@@ -14,6 +14,7 @@ pub mod debug;
 pub mod music;
 pub mod openmpt;
 pub mod perf;
+pub mod screen_upload;
 pub mod upscale;
 
 use crate::sexy::prelude::*;
@@ -150,6 +151,7 @@ impl Plugin for WinFishPlugin {
             .add_plugins(audio::plugin)
             .add_plugins(music::plugin)
             .add_plugins(upscale::plugin)
+            .add_plugins(screen_upload::plugin)
             .add_systems(Update, (poll_vfs_load, close_requested, focus, debug::keys, input, debug::auto_collect, run_app, audio::play_sounds, music::sync_music, upload_screen, refresh_screen_material, flush_saves, restore_window, apply_screen_mode, remember_window, fit_screen, cursor::update, debug::overlay).chain());
     }
 }
@@ -825,8 +827,8 @@ fn close_requested(mut g: ResMut<G>, host: Res<HostState>, mut events: MessageRe
     }
 }
 
-fn upload_screen(g: ResMut<G>, host: ResMut<HostState>, images: ResMut<Assets<Image>>, exit: MessageWriter<AppExit>) {
-    perf::span(perf::Section::Upload, || upload_screen_inner(g, host, images, exit));
+fn upload_screen(g: ResMut<G>, host: ResMut<HostState>, images: ResMut<Assets<Image>>, exit: MessageWriter<AppExit>, upload: Res<screen_upload::ScreenUpload>) {
+    perf::span(perf::Section::Upload, || upload_screen_inner(g, host, images, exit, &upload));
 }
 
 fn upload_screen_inner(
@@ -834,6 +836,7 @@ fn upload_screen_inner(
     mut host: ResMut<HostState>,
     mut images: ResMut<Assets<Image>>,
     mut exit: MessageWriter<AppExit>,
+    upload: &screen_upload::ScreenUpload,
 ) {
     let (Some(handle), true) = (host.screen.clone(), host.booted) else { return };
     let wm = crate::game::boot::widget_manager(&mut g);
@@ -906,15 +909,9 @@ fn upload_screen_inner(
     };
     // (The 640x480 screen is shown opaque; the HD screen's pixels go as they are.)
     let opaque = if hd { 0 } else { 0xff00_0000 };
-    // The texture's pixels are handed to the renderer, not copied (`RENDER_WORLD` only):
-    // each upload is a fresh buffer, written once.
-    let mut buf = Vec::with_capacity(bits.len() * 4);
-    for px in bits {
-        buf.extend_from_slice(&(px | opaque).to_le_bytes());
-    }
-    if let Some(mut img) = images.get_mut(&handle) {
-        img.data = Some(buf);
-    }
+    // Written straight into the texture (`screen_upload`); the image asset itself is not
+    // touched after it is created.
+    upload.send(handle.id(), w, h, bits, opaque);
 }
 
 #[cfg(test)]
