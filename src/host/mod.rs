@@ -300,7 +300,7 @@ fn setup_screen(
         TextureDimension::D2,
         &[0, 0, 0, 255],
         TextureFormat::Bgra8UnormSrgb,
-        RenderAssetUsages::default(),
+        RenderAssetUsages::RENDER_WORLD,
     );
     let handle = images.add(img);
     commands.spawn((
@@ -881,7 +881,7 @@ fn upload_screen_inner(
     // `refresh_screen_material`).
     let replace = images.get(&handle).is_none_or(|img| img.width() != w || img.height() != h || img.texture_descriptor.format != format);
     if replace {
-        let img = Image::new_fill(Extent3d { width: w, height: h, depth_or_array_layers: 1 }, TextureDimension::D2, &[0, 0, 0, 255], format, RenderAssetUsages::default());
+        let img = Image::new_fill(Extent3d { width: w, height: h, depth_or_array_layers: 1 }, TextureDimension::D2, &[0, 0, 0, 255], format, RenderAssetUsages::RENDER_WORLD);
         images.remove(&handle);
         host.screen = Some(images.add(img));
         g.hd.dirty = true;
@@ -906,12 +906,14 @@ fn upload_screen_inner(
     };
     // (The 640x480 screen is shown opaque; the HD screen's pixels go as they are.)
     let opaque = if hd { 0 } else { 0xff00_0000 };
-    if let Some(mut img) = images.get_mut(&handle)
-        && let Some(buf) = img.data.as_mut()
-    {
-        for (dst, px) in buf.chunks_exact_mut(4).zip(bits) {
-            dst.copy_from_slice(&(px | opaque).to_le_bytes());
-        }
+    // The texture's pixels are handed to the renderer, not copied (`RENDER_WORLD` only):
+    // each upload is a fresh buffer, written once.
+    let mut buf = Vec::with_capacity(bits.len() * 4);
+    for px in bits {
+        buf.extend_from_slice(&(px | opaque).to_le_bytes());
+    }
+    if let Some(mut img) = images.get_mut(&handle) {
+        img.data = Some(buf);
     }
 }
 

@@ -31,6 +31,15 @@ pub struct HdImage {
     pub width: i32,
     pub height: i32,
     pub bits: Vec<u32>,
+    /// Rows with no transparency at all (a plain white draw of them is a straight copy).
+    opaque_rows: Vec<bool>,
+}
+
+impl HdImage {
+    pub fn new(width: i32, height: i32, bits: Vec<u32>) -> HdImage {
+        let opaque_rows = if width > 0 { bits.chunks(width as usize).map(|r| r.iter().all(|p| p >> 24 == 0xff)).collect() } else { Vec::new() };
+        HdImage { width, height, bits, opaque_rows }
+    }
 }
 
 enum Art {
@@ -87,7 +96,7 @@ fn load_art(job: &Job) -> Option<Arc<HdImage>> {
         return None;
     }
     let bits = i.pixels().map(|p| ((p[3] as u32) << 24) | ((p[0] as u32) << 16) | ((p[1] as u32) << 8) | p[2] as u32).collect();
-    let art = HdImage { width: w, height: h, bits };
+    let art = HdImage::new(w, h, bits);
     alpha_matches(&job.alpha, job.width, job.height, &art).then(|| Arc::new(art))
 }
 
@@ -255,9 +264,13 @@ impl HdScreen {
         let threads = std::thread::available_parallelism().map_or(4, |n| n.get()).clamp(1, 16) as i32 * 2;
         let rows = (h + threads - 1) / threads;
         let sources = &sources;
-        // (On the engine's worker threads, which are already running, instead of new
-        // threads started for every frame.)
-        let pool = bevy::tasks::ComputeTaskPool::get_or_init(bevy::tasks::TaskPool::default);
+        // (On a pool of threads kept running, one per core, instead of new threads started
+        // for every frame.)
+        static POOL: std::sync::OnceLock<bevy::tasks::TaskPool> = std::sync::OnceLock::new();
+        let pool = POOL.get_or_init(|| {
+            let n = std::thread::available_parallelism().map_or(4, |n| n.get()).clamp(1, 16);
+            bevy::tasks::TaskPoolBuilder::new().num_threads(n).thread_name("HD paint".into()).build()
+        });
         pool.scope(|scope| {
             for (i, band) in self.bits.chunks_mut((rows * w) as usize).enumerate() {
                 let y0 = i as i32 * rows;
@@ -419,13 +432,26 @@ impl Painter<'_> {
             let run = if mirror { cols[0] + 1 == cols[n - 1] + n } else { cols[n - 1] + 1 == cols[0] + n };
             if run {
                 let c0 = if mirror { cols[n - 1] } else { cols[0] };
+                let plain = mode != 1 && color == Color::WHITE;
                 macro_rules! runs {
                     ($px:expr) => {{
                         for y in area.mY..area.mY + area.mHeight {
-                            let r = row(y) + c0;
+                            let r0 = row(y);
+                            let r = r0 + c0;
                             let off = ((y - y0) * width) as usize;
                             let line = &mut self.bits[off + x0 as usize..off + x1 as usize];
                             let art = &bits[r..r + n];
+                            // An opaque row drawn plain white: `normal_px` returns the source.
+                            if plain && a.opaque_rows[r0 / a.width as usize] {
+                                if mirror {
+                                    for (d, &p) in line.iter_mut().zip(art.iter().rev()) {
+                                        *d = p;
+                                    }
+                                } else {
+                                    line.copy_from_slice(art);
+                                }
+                                continue;
+                            }
                             if mirror {
                                 for (d, &p) in line.iter_mut().zip(art.iter().rev()) {
                                     *d = $px(*d, p);
@@ -617,6 +643,7 @@ fn bilinear_taps(bits: &[u32], w: i32, tx: &Tap, ty: &Tap) -> u32 {
 
 /// Bilinear sample at (`u`, `v`) (pixel centres at integers), clamped to `rect`; colours are
 /// weighted by alpha so transparent pixels leave no dark fringe.
+#[cfg(test)]
 fn bilinear(bits: &[u32], w: i32, _h: i32, rect: Rect, u: f32, v: f32) -> u32 {
     let u = u.clamp(rect.mX as f32, (rect.mX + rect.mWidth - 1) as f32);
     let v = v.clamp(rect.mY as f32, (rect.mY + rect.mHeight - 1) as f32);
@@ -691,7 +718,7 @@ mod tests {
             img.offset_0x24 = h;
             img.mBits = (0..w * h).map(|_| px(&mut rng)).collect();
             let p = g.alloc(Obj { vt: None, node: Node::Image(Box::new(img)) });
-            let art = (i % 2 == 0).then(|| Arc::new(HdImage { width: w * K, height: h * K, bits: (0..w * h * K * K).map(|_| px(&mut rng)).collect() }));
+            let art = (i % 2 == 0).then(|| Arc::new(HdImage::new(w * K, h * K, (0..w * h * K * K).map(|_| if i == 2 || rng.next() % 3 == 0 { 0xff00_0000 | rng.next() } else { px(&mut rng) }).collect())));
             sources.insert(p, Source { art, has_alpha: Some(i % 3 == 0) });
             ids.push(p);
         }
@@ -735,7 +762,7 @@ mod bench {
         img.offset_0x24 = 480;
         img.mBits = (0..640 * 480u32).map(|i| 0xff00_0000 | i.wrapping_mul(2654435761) >> 8).collect();
         let p = g.alloc(Obj { vt: None, node: Node::Image(Box::new(img)) });
-        let art = Arc::new(HdImage { width: 2560, height: 1920, bits: (0..2560 * 1920u32).map(|i| 0xff00_0000 | i.wrapping_mul(2654435761) >> 8).collect() });
+        let art = Arc::new(HdImage::new(2560, 1920, (0..2560 * 1920u32).map(|i| 0xff00_0000 | i.wrapping_mul(2654435761) >> 8).collect()));
         let mut sources = HashMap::new();
         sources.insert(p, Source { art: Some(art), has_alpha: Some(false) });
         let mut bits = vec![0xff00_0000u32; 2560 * 1920];
