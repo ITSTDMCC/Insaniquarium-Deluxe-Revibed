@@ -51,6 +51,7 @@ pub fn update(
     mut images: ResMut<Assets<Image>>,
     windows: Query<(Entity, &Window, Option<&CursorIcon>, Option<&CursorOptions>)>,
     mut sprites: Query<(&mut Sprite, &mut Transform, &mut Visibility), With<CursorSprite>>,
+    soft: Option<ResMut<super::soft_present::SoftCursor>>,
 ) {
     let Ok((entity, window, icon, options)) = windows.single() else { return };
     let Ok((mut sprite, mut transform, mut visibility)) = sprites.single_mut() else { return };
@@ -67,7 +68,13 @@ pub fn update(
 
     // The game's image, centered on the mouse and scaled like the picture (`fit_screen`).
     let show = custom != NULL && pos.is_some();
-    if let (true, Some(p)) = (show, pos) {
+    // (Software display: the presenter draws it over the picture, in window pixels.)
+    if let Some(mut soft) = soft {
+        let want = window.physical_cursor_position().filter(|_| show).map(|p| (custom, p));
+        if soft.0 != want {
+            soft.0 = want;
+        }
+    } else if let (true, Some(p)) = (show, pos) {
         if cache.image != custom || cache.handle.is_none() {
             let im = g.image(custom);
             let (w, h) = (im.offset_0x20.max(1) as u32, im.offset_0x24.max(1) as u32);

@@ -6,7 +6,40 @@ description = "Rust/Bevy port of Insaniquarium Deluxe (WinFish.exe), translated 
 publish = false
 
 [dependencies]
-bevy = "0.19.1"
+# Only the engine parts a 2D game uses (no 3D, glTF, animation, gizmos, picking, scenes,
+# gamepads or post-processing): a smaller exe, less memory, fewer background systems.
+bevy = { version = "0.19.1", default-features = false, features = [
+    "default_app",
+    "std",
+    "multi_threaded",
+    "bevy_winit",
+    "x11",
+    "wayland",
+    "custom_cursor",
+    "bevy_window",
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_camera",
+    "bevy_color",
+    "bevy_image",
+    "png",
+    "bevy_mesh",
+    "bevy_shader",
+    "bevy_material",
+    "bevy_sprite",
+    "bevy_sprite_render",
+    "bevy_ui",
+    "bevy_ui_render",
+    "bevy_text",
+    "default_font",
+    "audio",
+] }
+# (Already part of bevy.) Its `gles` feature adds OpenGL as a last-resort graphics backend,
+# for old or basic GPUs with no Vulkan or DX12 driver.
+bevy_render = { version = "0.19.1", default-features = false, features = ["gles"] }
+softbuffer = "0.4.8"
+# (Already part of bevy.) Used directly only to check for a hardware GPU before start-up.
+wgpu = { version = "29.0.4", default-features = false }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"] }
 
 [dev-dependencies]

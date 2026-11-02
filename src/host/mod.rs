@@ -15,6 +15,7 @@ pub mod music;
 pub mod openmpt;
 pub mod perf;
 pub mod screen_upload;
+pub mod soft_present;
 pub mod upscale;
 
 use crate::sexy::prelude::*;
@@ -134,6 +135,8 @@ impl Pacer {
 
 pub struct WinFishPlugin {
     pub game_dir: PathBuf,
+    /// Show the picture without the GPU (`soft_present`); the renderer was not started.
+    pub software: bool,
     /// Use the HD art in the game folder's `hd` directory (`--hd`); off by default.
     pub hd: bool,
 }
@@ -142,6 +145,9 @@ impl Plugin for WinFishPlugin {
     fn build(&self, app: &mut App) {
         let mut g = G::default();
         g.hd.enabled = self.hd;
+        if self.software {
+            app.add_plugins(soft_present::plugin);
+        }
         app.insert_resource(g)
             .insert_resource(GameDir(self.game_dir.clone()))
             .insert_resource(ClearColor(bevy::color::Color::BLACK))
